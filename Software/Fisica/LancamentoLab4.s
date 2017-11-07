@@ -85,9 +85,9 @@ POSICAO:beq $t0, $t1, RETURN
 	sw $a0,0($sp)
 	sw $v0,4($sp)
 	####### DELAY #######
-	addi $a0,$zero,10
-	addi $v0,$zero,32
-	syscall
+	#addi $a0,$zero,10
+	#addi $v0,$zero,32
+	#syscall
 	#####################
 	lw $a0,0($sp)
 	lw $v0,4($sp)
