@@ -1,0 +1,233 @@
+.eqv VGA 0xFF000000
+
+.data 
+SPRITE: .byte 85,62,0,1
+BUFFER: .space 5300
+
+FILE1: .asciiz "menu.bin"
+FILE2: .asciiz "ryu2.bin"
+
+MSG_COLISAO:	.asciiz "Ocorreu colisão!"
+MSG_COLIDE:	.asciiz "Colisão tipo: "
+MSG_NAO_COLIDE:	.asciiz "Nao colide"
+.text
+
+# Preenche a tela de vermelho
+
+	la $t1,0xFF012C00
+	la $s2,0xFF000000
+	la $s1,0xF8F8F8F8
+LOOP: 	beq $s2,$t1,FORA
+	sw $s1,0($s2)
+	addi $s2,$s2,4
+	j LOOP
+FORA:	
+# Abre o arquivo com tela de fundo
+	la $a0,FILE1
+	li $a1,0
+	li $a2,0
+	li $v0,13
+	syscall
+
+# Le o arquivo para a memoria VGA
+	move $a0,$v0
+	la $a1,VGA
+	li $a2,76800
+	li $v0,14
+	syscall
+
+#Fecha o arquivo
+	li $v0,16
+	syscall
+
+
+# Abre o arquivo sprite
+PULA:	la $a0,FILE2
+	li $a1,0
+	li $a2,0
+	li $v0,13
+	syscall
+
+# Le o sprite para a memoria BUFFER
+	move $a0,$v0
+	la $a1,BUFFER
+	li $a2,5270
+	li $v0,14
+	syscall
+
+#Fecha o arquivo
+	li $v0,16
+	syscall
+
+	la $a0,SPRITE
+	li $a1,100	#Posicao X
+	li $a2,100	#Posicao Y
+	jal PrintSprite
+	
+	##
+	move $s0,$a1
+	move $s1,$a2
+	
+	lb $t0,0($a0)
+	lb $t1,1($a0)
+	
+#####################################################################
+# Print SPRITE 2
+
+# Abre o arquivo sprite
+PULA2:	la $a0,FILE2
+	li $a1,0
+	li $a2,0
+	li $v0,13
+	syscall
+
+# Le o sprite para a memoria BUFFER
+	move $a0,$v0
+	la $a1,BUFFER
+	li $a2,5270
+	li $v0,14
+	syscall
+
+#Fecha o arquivo
+	li $v0,16
+	syscall
+
+	la $a0,SPRITE
+	li $a1,184	#Posicao X
+	li $a2,100	#Posicao Y
+	jal PrintSprite
+	
+	move $t2,$a1
+	move $t3,$a2
+	
+	lb $t5,0($a0)
+	lb $t6,1($a0)
+	
+#####################################################################
+	
+	jal Detecta_colisao
+	
+	li $a0, 500
+	li $v0, 32
+	syscall
+	
+	li $v0,10
+	syscall
+
+PrintSprite: 
+
+	#salva t0,t1,t2,t3,t5,t6
+	addi $sp,$sp,-28
+	sw $t0,0($sp)
+	sw $t1,4($sp)
+	sw $t2,8($sp)
+	sw $t3,12($sp)
+	sw $t5,16($sp)
+	sw $t6,20($sp)
+	sw $a0,24($sp)
+
+# imprime o sprite na tela
+	lb $t0,0($a0)		# TamX
+	lb $t1,1($a0)		# TamY
+	
+	addi $a0,$a0,4		
+	move $t2,$zero
+	move $t3,$zero
+
+	li $t5,320
+	mul $t4,$a1,$t5		# 320*x
+	add $t4,$t4,$a2		# +y
+	la $t6,VGA
+	add $t6,$t6,$t4    # endereço inicial de impressão do sprite
+	move $t8,$t6
+	
+LOOP1:	beq $t2,$t0,FORA1
+LOOP2:	beq $t3,$t1,FORA2
+	lb $t7,0($a0)
+	sb $t7,0($t6)
+	addi $a0,$a0,1
+	addi $t6,$t6,1
+	addi $t3,$t3,1
+	j LOOP2
+FORA2:	addi $t6,$t8,320
+	move $t8,$t6
+	addi $t2,$t2,1
+	move $t3,$zero
+	j LOOP1
+	
+FORA1:	
+	lw $t0,0($sp)
+	lw $t1,4($sp)
+	lw $t2,8($sp)
+	lw $t3,12($sp)
+	lw $t5,16($sp)
+	lw $t6,20($sp)
+	lw $a0,24($sp)
+	addi $sp,$sp,28
+	
+	jr $ra
+
+###############################################
+#  Detector de colisao			      #
+#  $s0 = Posicao x -> ret1.y		      #
+#  $s1 = Posicao y -> ret1.x		      #
+#  $t2 = Posicao x2 -> ret2.y		      #
+#  $t3 = Posicao y2 -> ret2.x		      #
+#  $t0 = Altura	-> ret1.altura		      #
+#  $t1 = Largura -> ret1.largura	      #
+#  $t5 = Altura 2 -> ret2.altura	      #
+#  $t6 = Largura 2 -> ret2.largura	      #
+					      #
+#if (ret1.x < ret2.x + ret2.largura &&	      #
+#   ret1.x + ret1.largura > ret2.x &&	      #
+#   ret1.y < ret2.y + ret2.altura &&	      #
+#   ret1.altura + ret1.y > ret2.y) {	      #
+#    // colisao detectada!		      #
+#   }					      #
+###############################################
+
+Detecta_colisao:
+	li $t8, 1
+	lb $t9,3($a0)
+	
+	#rect1.x < rect2.x + rect2.largura
+	add $t7,$t3,$t6
+	slt $t7,$s1,$t7
+	beq $t7,$zero,NAO_COLIDE
+	
+	#rect1.x + rect1.largura > rect2.x
+	add $t7,$s1,$t1
+	slt $t7,$t7,$t3
+	beq $t7,$t8,NAO_COLIDE
+	
+	#rect1.y < rect2.y + rect2.altura
+	add $t7,$t2,$t5
+	slt $t7,$s0,$t7
+	beq $t7,$zero,NAO_COLIDE
+	
+	#rect1.altura + rect1.y > rect2.y
+	add $t7,$t0,$s0
+	slt $t7,$t7,$t2
+	beq $t7,$t8,NAO_COLIDE
+	
+COLIDE:
+	la $a0,MSG_COLIDE
+	li $v0,4
+	syscall
+	
+	move $a0,$t9
+	li $v0,1
+	syscall
+	
+	move $v0,$a0
+	
+	jr $ra
+	
+NAO_COLIDE:
+	la $a0,MSG_NAO_COLIDE
+	li $v0,4
+	syscall
+	
+	li $v0,0
+	
+	jr $ra

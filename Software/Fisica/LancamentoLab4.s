@@ -10,7 +10,11 @@
 	POS0: .word 0xFF000000
 	COR: .word 0x0000000
 
-.text
+.text 
+	addi $a0,$zero,5000
+	addi $v0,$zero,32
+	syscall
+FIM1: j FIM1	
 add $a3, $zero, $zero
 la $a2, VELOCIDADE
 ## Preenche a tela de preto
@@ -85,9 +89,9 @@ POSICAO:beq $t0, $t1, RETURN
 	sw $a0,0($sp)
 	sw $v0,4($sp)
 	####### DELAY #######
-	#addi $a0,$zero,10
-	#addi $v0,$zero,32
-	#syscall
+	addi $a0,$zero,10
+	addi $v0,$zero,32
+	syscall
 	#####################
 	lw $a0,0($sp)
 	lw $v0,4($sp)
