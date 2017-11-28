@@ -25,13 +25,12 @@ J:	.word 0x3B
 kJ:	.word 0x08000000
 END:	.word 0x00000000
 .text
-#inicializando o contador (importante estar fora da funcao)
 
 LP:
 #recuperando o contador
-#
 la	$a0, Cnt
 lw	$a0, 0($a0)
+
 #Carregando os Buffers J 0x1001_1FF0 e 0x1001_1FF4
 la	$a2,BuffJ1	
 
