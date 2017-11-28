@@ -1,8 +1,8 @@
+#retorna a tecla pressionada em $v0 e a sequencia de teclas em BuffJ1
 .data
-#Declarar Buffers aqui
-#
 .align 2
-Cnt:	.word 42000
+BuffJ1:	.space 8		#buffer que registra a sequencia de teclas do jogador
+Cnt:	.word 0			
 W:	.word 0x1D		#codigo da tecla
 kW:	.word 0x20000000	#codigo do keymap
 A:	.word 0x1C
@@ -26,15 +26,14 @@ kJ:	.word 0x08000000
 END:	.word 0x00000000
 .text
 #inicializando o contador (importante estar fora da funcao)
-la	$a0, Cnt
-lw	$a0, 0($a0)
+
 LP:
 #recuperando o contador
 #
-
+la	$a0, Cnt
+lw	$a0, 0($a0)
 #Carregando os Buffers J 0x1001_1FF0 e 0x1001_1FF4
-la	$a2,0x10011FF0
-la	$a3,0x10011FF4	
+la	$a2,BuffJ1	
 
 #carrega o ultimo codigo do Buffer 0
 la	$t0,0xFF100100	#BUFFER 0
@@ -68,20 +67,22 @@ HIT:
 move	$v0,$t8
 j	fim
 
-#Armazena no Buffer se %a0 == 0
+#Armazena no Buffer se %a0 == valor max
 fim:
-beq	$a0,$zero,grava
-subi	$a0,$a0,1
+li	$t9,30000
+beq	$a0,$t9,grava
+addi	$a0,$a0,1
+sw	$a0,Cnt
 #jr	$ra
 j	LP
 
 grava:
 #Shift para esquerda do Buffer
-lw	$t4,0($a3)
+lw	$t4,4($a2)
 sll	$t4,$t4,8
 lb	$t5,3($a2)
 or	$t4,$t4,$t5
-sw	$t4,0($a3)
+sw	$t4,4($a2)
 lw	$t4,0($a2)
 sll	$t4,$t4,8
 sw	$t4,0($a2)
@@ -89,10 +90,10 @@ sw	$t4,0($a2)
 sb	$v0,0($a2)
 #reinicializa a contagem
 la	$a0, Cnt
-lw	$a0, 0($a0)
+sw	$zero, 0($a0)
 #exibe na tela (teste somente)
 lw	$t6,0($a2)
-lw	$t7,0($a3)
+lw	$t7,4($a2)
 
 #jr	$ra
 #loop da função
