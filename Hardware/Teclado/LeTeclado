@@ -41,33 +41,32 @@ la	$t5,0xFF100530	#limite do keyMap
 lb	$t8,0($t0)	#ultima tecla no buffer
 la	$t2,W
 #comparar o codigo com as teclas validas
-cmp:lw	$t1,0($t2)
-beq	$t8,$t1,kcmp
-addi	$t2,$t2,8
-beq	$t1,$zero,ERRO
+cmp:lw	$t1,0($t2)	#Carrega o codigo a ser testado
+beq	$t8,$t1,kcmp	#Compara o codigo. Se for uma tecla valida vai para comparacao do KeyMap
+addi	$t2,$t2,8	#Passa para o proximo código
+beq	$t1,$zero,ERRO	#Verifica se acabaram as os codigos para testar
 j	cmp
 #comparar com o keymap e descobrir se a tecla esta sendo pressionada agora
 kcmp:
 lw	$t1,4($t2)
 loop:
-lw	$t3,0($t4)
+lw	$t3,0($t4)	#keyMap atual
 beq	$t1,$t3,HIT
-beq	$t4,$t5,ERRO
+beq	$t4,$t5,ERRO	#Verificação Limite Keymap
 addi	$t4,$t4,4
 j	loop
 
 #Erro: a tecla nao eh valida ou nao esta pressionada
 ERRO:
 li	$v0,0
-j	fim
+j	Contador
 
 #HIT: a tecla eh valida e esta pressionada
 HIT:
 move	$v0,$t8
-j	fim
 
 #Armazena no Buffer se %a0 == valor max
-fim:
+Contador:
 li	$t9,30000
 beq	$a0,$t9,grava
 addi	$a0,$a0,1
