@@ -3,12 +3,12 @@
 .align 2
 BuffJ1:	.space 8		#buffer que registra a sequencia de teclas do jogador
 Cnt:	.word 0			
-W:	.word 0x1D		#codigo da tecla
-kW:	.word 0x20000000	#codigo do keymap
-A:	.word 0x1C
-kA:	.word 0x10000000
-S:	.word 0x1B
-kS:	.word 0x08000000
+X:	.word 0x22		#codigo da tecla
+kX:	.word 0x00000004	#codigo do keymap
+V:	.word 0x2A
+kV:	.word 0x00000400
+C:	.word 0x21
+kC:	.word 0x00000002
 D:	.word 0x23
 kD:	.word 0x00000008
 T:	.word 0x2C
@@ -31,15 +31,31 @@ LP:
 la	$a0, Cnt
 lw	$a0, 0($a0)
 
-#Carregando os Buffers J 0x1001_1FF0 e 0x1001_1FF4
+#Carregando os Buffers J
 la	$a2,BuffJ1	
 
 #carrega o ultimo codigo do Buffer 0
 la	$t0,0xFF100100	#BUFFER 0
-la	$t4,0xFF100520	#KEY 0
-la	$t5,0xFF100530	#limite do keyMap
+la	$t4,0xFF100524	#KEY 1
 lb	$t8,0($t0)	#ultima tecla no buffer
-la	$t2,W
+la	$t2,X
+
+#Analisa o movimento (andar para direita ou esquerda e abaixar)
+li	$t3,8
+li	$v1,0
+MOV:
+lw	$t7,0($t4)	#carrega o KEY0
+lw	$t6,4($t2)	#carrega o keymap do .data
+and	$t7,$t6,$t7
+#comparacao
+bne	$t7,$t6,CMOV
+add	$v1,$v1,$t3
+CMOV:
+addi	$t2,$t2,8
+srl	$t3,$t3,1
+bne	$t3,0,MOV
+la	$t2,X
+
 #comparar o codigo com as teclas validas
 cmp:lw	$t1,0($t2)	#Carrega o codigo a ser testado
 beq	$t8,$t1,kcmp	#Compara o codigo. Se for uma tecla valida vai para comparacao do KeyMap
@@ -49,12 +65,10 @@ j	cmp
 #comparar com o keymap e descobrir se a tecla esta sendo pressionada agora
 kcmp:
 lw	$t1,4($t2)
-loop:
+
 lw	$t3,0($t4)	#keyMap atual
+and	$t3,$t1,$t3
 beq	$t1,$t3,HIT
-beq	$t4,$t5,ERRO	#Verificação Limite Keymap
-addi	$t4,$t4,4
-j	loop
 
 #Erro: a tecla nao eh valida ou nao esta pressionada
 ERRO:
@@ -90,8 +104,8 @@ sb	$v0,0($a2)
 la	$a0, Cnt
 sw	$zero, 0($a0)
 #exibe na tela (teste somente)
-lw	$t6,0($a2)
-lw	$t7,4($a2)
+lw	$s6,0($a2)
+lw	$s7,4($a2)
 
 #jr	$ra
 #loop da função
