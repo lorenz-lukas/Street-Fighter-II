@@ -31,7 +31,7 @@
 #                                                                               #
 #################################################################################
 
-.eqv SD_DATA_ADDR 0x0058000#3E8000            # GBA_24b_bit.txt com header. Addr = Offset + (137 * 512) = Offset + 0x00011200 (defasagem de setores lógicos/físicos * tamanho do setor)
+.eqv SD_DATA_ADDR 0x00058000#3E8000            # GBA_24b_bit.txt com header. Addr = Offset + (137 * 512) = Offset + 0x00011200 (defasagem de setores lógicos/físicos * tamanho do setor)
 .eqv VGA_INI_ADDR 0xFEFFFF40 #FF000000 - B8
 #.eqv VGA_END_ADDR 0xFF012C00 #0xFF012C00 - B8
 #s.eqv USER_DATA    0x1000F800
@@ -77,5 +77,5 @@ writeVGA:
 end:
     la      $a1, VGA_INI_ADDR
     la      $a2, VGA_QTD_BYTE
-    addi $a0, $a0, 0x00018000
+    addi $a0, $a0, 0x000018200
     j main
