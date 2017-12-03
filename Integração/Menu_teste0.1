@@ -1,0 +1,458 @@
+.eqv SD_INIT_CENARIO 0x00404000		# ARQUIVO.txt sem header. Addr = Offset.[Caso tenha header Addr = Offset + (137 * 512) = Offset + 0x00011200 (defasagem de setores lógicos/físicos * tamanho do setor)]. Olhe pelo WinHex o offset do seu cartão SD
+.eqv SD_INIT_SPRITE  0x004E8000		#Endereço no cartão SD onde começam os peersonagens
+.eqv VGA_INIT_ADDR   0xFEFFFF40		# FF000000 - C0  0xFEFFFF40  # Endereço inicial da VGA, mas existe um BUG, que pode ser concertado ao subtrair um offest no endereço da VGA
+.eqv VGA	     0xFF000000
+.eqv SD_INIT	     0x00404000		# ARQUIVO.txt sem header. Addr = Offset.[Caso tenha header Addr = Offset + (137 * 512) = Offset + 0x00011200 (defasagem de setores lógicos/físicos * tamanho do setor)]. Olhe pelo WinHex o offset do seu cartão SD
+.eqv SD_INIT_MENU    0x00417000
+.eqv SD_MENU_FINAL   0x00450000
+
+
+.eqv SRAM_MENU0	     0x10014C00
+.eqv SRAM_MENU1	     0x10037800
+.eqv SRAM_MENU2	     0x1004A400
+.eqv SRAM_MENU3	     0x1005D000
+.eqv SRAM_CENARIO    0x10012000		# Endereço da SRAM onde começam os cenários
+.eqv SRAM_SPRITE     0x100F3000		# Endereço da SRAM onde começam as sprites
+.eqv VGA_QTD_BYTE    76800		# VGA Bytes
+.eqv SPRITE_QTD_BYTE 19456
+
+.eqv Ryu_cenario     0x1005D000		#Endereço na SRAM onde começa o cenário do ryu
+
+.eqv OFFS_SD_CENA 0x00013000		#OFFSET entre arquivos de cenário no cartão SD
+.eqv OFFS_SR_CENA 0x00012C00		#OFFSET entre cenários na SRAM (= Tamanho do cenário = 76800)
+.eqv OFFS_SD_CHAR 0x00005000		#OFFSET entre arquivos de sprite no cartão SD
+.eqv OFFS_SR_CHAR 0x00004B00		#OFFSET entre sprites na SRAM (= Tamanho da sprite = 19200)
+
+.eqv TamX	  160
+.eqv TamY	  123
+
+.data
+.align 2
+#Teclas do jogador 1
+BuffJ1:	.space 8		#buffer que registra a sequencia de teclas do jogador 1
+BuffJ2:	.space 8		#buffer que registra a sequencia de teclas do jogador 2
+Cnt:	.word 0			
+X:	.word 0x22		#codigo da tecla
+kX:	.word 0x00000004	#codigo do keymap
+V:	.word 0x2A
+kV:	.word 0x00000400
+C:	.word 0x21
+kC:	.word 0x00000002
+D:	.word 0x23
+kD:	.word 0x00000008
+T:	.word 0x2C
+kT:	.word 0x00001000
+Y:	.word 0x35
+kY:	.word 0x00200000
+U:	.word 0x3C
+kU:	.word 0x10000000
+G:	.word 0x34
+kG:	.word 0x00100000
+H:	.word 0x33
+kH:	.word 0x00080000
+J:	.word 0x3B
+kJ:	.word 0x08000000
+#Teclas do jogador 2
+T4:	.word 0x6B
+k4:	.word 0x00000800
+T5:	.word 0x73
+k5:	.word 0x00080000
+T6:	.word 0x74
+k6:	.word 0x00100000
+T8:	.word 0x75
+k8:	.word 0x00200000
+Ins:	.word 0x70
+kIns:	.word 0x00010000
+Home:	.word 0x6C
+kHome:	.word 0x00001000
+Pup:	.word 0x7D
+kPup:	.word 0x20000000
+Del:	.word 0x71
+kDel:	.word 0x00020000
+End:	.word 0x69
+kEnd:	.word 0x00000200
+PDown:	.word 0x7A
+kPDown:	.word 0x04000000
+END:	.word 0x00000000
+
+.align 4	
+
+.text
+INICIO:	
+	# Printa a tela inicial na tela diretamente do SD. Demora.
+	la $a0, SD_INIT
+	la $a1, VGA_INIT_ADDR
+	la $a2, VGA_QTD_BYTE
+	li $v0, 49
+	syscall
+	
+	# Enquanto isso, carrega para a SRAM todos os sprites do menu
+	la	$a0, SD_INIT_MENU	
+	la	$a1, SRAM_MENU0
+ 	la	$a2, VGA_QTD_BYTE
+ 	la	$a3, SD_MENU_FINAL
+ 	jal GET_CENARIO
+ 	nop
+ 	
+ 	# Printa na tela o Menu na opção 0
+	la	$a0, VGA_INIT_ADDR
+	li	$a1, SRAM_MENU0
+	li	$a3, 76800
+ 	jal PRINT_CENARIO
+ 	nop
+	move $a0,$zero
+	move $s0,$zero		# $s0 guarda o estado da opção atual do menu
+		
+MENU_LOOP:	bne $a0,$zero,AVALIA_MENU	# Avalia se a última tecla pressionada foi diferente de 0
+		jal LP				# Lê do teclado
+		nop
+		and $a0,$v0,0xFF		# Último byte de $v0 contém a última tecla pressionada
+		j MENU_LOOP
+		nop
+
+AVALIA_MENU:	beq $a0,0x21,DESCE		# Tecla "c" definida como desce
+		beq $a0,0x2C,SELECAO_DO_MENU	# Tecla "t" definida como seleção
+		move $a0,$zero			# Se não for nenhuma, zera $a0 e volta para o menu inicial
+		j MENU_LOOP			# Else: Volta a ler do teclado
+		nop
+		
+SELECAO_DO_MENU:
+		beq $s0,$zero,GAME_START_MENU
+		beq $s0,0x1,GAME_VS_MENU
+		j MENU_LOOP
+		nop
+		
+ESCOLHA_NULL:	move $a0,$zero
+		j MENU_LOOP
+		nop	
+		
+DESCE:		beq $s0,$zero,OPCAO_1
+		beq $s0,0x1,OPCAO_2
+		beq $s0,0x2,OPCAO_3
+		beq $s0,0x3,OPCAO_0
+		j MENU_LOOP
+		nop
+
+OPCAO_0:	li $s0,0
+		
+		# Printa na tela o Menu na opção 0
+		la	$a0, VGA_INIT_ADDR
+		li	$a1, SRAM_MENU0
+		li	$a3, 76800
+ 		jal PRINT_CENARIO
+ 		nop
+		jal MENU_LOOP
+		nop
+
+OPCAO_1:	li $s0,1
+		
+		# Printa na tela o Menu na opção 0
+		la	$a0, VGA_INIT_ADDR
+		li	$a1, SRAM_MENU1
+		li	$a3, 76800
+ 		jal PRINT_CENARIO
+ 		nop
+		jal MENU_LOOP
+		nop
+
+OPCAO_2:	li $s0,2
+		
+		# Printa na tela o Menu na opção 0
+		la	$a0, VGA_INIT_ADDR
+		li	$a1, SRAM_MENU2
+		li	$a3, 76800
+ 		jal PRINT_CENARIO
+ 		nop
+		jal MENU_LOOP
+		nop
+
+OPCAO_3:	li $s0,3
+		
+		# Printa na tela o Menu na opção 0
+		la	$a0, VGA_INIT_ADDR
+		li	$a1, SRAM_MENU3
+		li	$a3, 76800
+ 		jal PRINT_CENARIO
+ 		nop
+		jal MENU_LOOP
+		nop
+####################################################################################################################################
+
+GAME_START_MENU:j END0
+		nop
+		
+GAME_VS_MENU:	j END0
+		nop
+ ##################################################################################################################################
+GET_CENARIO:
+ 	addi	$sp, $sp, -16	#salva os valores de a0, a1 e a2 na pilha para recuperá=los caso sejam alterados pelo syscall
+ 	sw	$a0, 0($sp)
+ 	sw	$a1, 4($sp)
+ 	sw	$a2, 8($sp)
+ 	sw	$ra, 12($sp)
+	
+	li	$v0, 49			# Syscall 49 - SD Card Read
+	syscall
+	
+ 	lw	$a0, 0($sp)
+ 	lw	$a1, 4($sp)
+ 	lw	$a2, 8($sp)
+ 	lw	$ra, 12($sp)
+ 	addi	$sp, $sp, 16
+	
+	beq	$a0,$a3, FIM_CENARIO
+	addi	$a0, $a0, OFFS_SD_CENA
+	addi	$a1, $a1, OFFS_SR_CENA
+	j	GET_CENARIO
+	nop
+FIM_CENARIO: jr $ra
+	nop
+####################################################################################################################################
+GET_SPRITE: 		
+ 	addi	$sp, $sp, -16	#salva os valores de a0, a1 e a2 na pilha para recuperá=los caso sejam alterados pelo syscall
+ 	sw	$a0, 0($sp)
+ 	sw	$a1, 4($sp)
+ 	sw	$a2, 8($sp)
+ 	sw	$ra, 12($sp)
+ 	
+	li	$v0, 49			# Syscall 49 - SD Card Read
+	syscall
+	
+ 	lw	$a0, 0($sp)
+ 	lw	$a1, 4($sp)
+ 	lw	$a2, 8($sp)
+ 	lw	$ra, 12($sp)
+ 	addi	$sp, $sp, 16
+	
+	beq	$a0,0x4ED000,FIM_SPRITE
+	addi	$a0, $a0, OFFS_SD_CHAR
+	addi	$a1, $a1, OFFS_SR_CHAR
+	j	GET_SPRITE
+	nop
+	
+FIM_SPRITE:	jr $ra
+	nop
+######################################################################################################################################
+PRINT_CENARIO:
+	addi	$sp, $sp, -12
+ 	sw	$t2, 0($sp)
+ 	sw	$t4, 4($sp)
+ 	sw	$ra, 12($sp)
+	
+LOOP_CENARIO:
+ 	lw	$t2, 0($a1)
+	sw	$t2, 0($a0)
+	addi	$a0, $a0, 4
+	addi	$a1, $a1, 4
+	addi	$a3, $a3, -4
+ 	slti	$t4, $a3, 1
+	beq	$t4, $zero, LOOP_CENARIO
+	
+ 	lw	$t2, 0($sp)
+ 	lw	$t4, 4($sp)
+ 	lw	$ra, 12($sp)
+	addi	$sp, $sp, 12
+		
+	jr $ra
+	nop
+####################################################################################################################################
+PRINT_SPRITE:
+
+	addi	$sp, $sp, -24	#salva os valores de a0, a1 e a2 na pilha para recuperá=los caso sejam alterados pelo syscall
+ 	sw	$t0, 0($sp)
+ 	sw	$t1, 4($sp)
+ 	sw	$t2, 8($sp)
+ 	sw	$t3, 12($sp)
+ 	sw	$t5, 16($sp)
+ 	sw	$t6, 20($sp)
+
+	li 	$t0, 320
+	mult 	$a1, $t0		# 320*y
+	mflo	$t1
+	add 	$t0,$t1,$a0		# +x 
+	
+	la 	$t1, VGA
+	add	$t0,$t1,$t0    # endereço inicial de impressão do sprite ( VGA + 320*X+Y)
+	
+	move	$t2, $zero
+	move	$t3, $zero
+	
+	addi $t6,$zero, 19200
+LOOP:	
+	lb 	$t5,0($a3)
+	sb 	$t5, 0($t6)
+	addi	$a3, $a3, 1
+	addi	$t6, $t6, 1
+	addi	$t3, $t3, 1
+	bne	$t3, TamX, LOOP
+############	LOOP EXTERNO: 	
+	addi 	$t6, $t0, 320
+	move 	$t0,$t6			##########
+	addi 	$t2, $t2, 1
+	move 	$t3, $zero	
+	bne 	$t2, TamY, LOOP
+
+ 	sw	$t0, 0($sp)
+ 	sw	$t1, 4($sp)
+ 	sw	$t2, 8($sp)
+ 	sw	$t3, 12($sp)
+ 	sw	$t5, 16($sp)
+ 	sw	$t6, 20($sp)
+ 	addi	$sp, $sp, 24
+	
+	jr $ra
+	nop
+
+LP:
+
+add	$sp,$sp,-8
+sw	$a0,0($sp)
+sw	$s0,4($sp)
+#Carregando os Buffers J
+la	$s1,BuffJ1
+la	$s2,BuffJ2
+
+#carrega o ultimo codigo do Buffer 0
+la	$t0,0xFF100100	#BUFFER 0
+la	$s0,0xFF100524	#KEY 1
+la	$s4,0xFF10052C	#KEY 4
+lb	$t8,0($t0)	#ultima tecla no buffer
+la	$s5,T4		#Primeira tecla do Jogador 2
+la	$t2,X		#Primeira tecla do Jogador 1
+move	$t4,$zero	#inicializa a flag a ser usada no EscreveBuff
+
+#Analisa o movimento (andar para direita ou esquerda e abaixar)
+li	$t3,8		#Carrega o peso da tecla
+li	$v1,0		#Zera o registrador de retorno
+move	$t1,$s0		#Copia o KEY1 para $t1
+MOV:
+lw	$t7,0($t1)	#carrega o KEY
+lw	$t6,4($t2)	#carrega o keymap do .data
+and	$t7,$t6,$t7
+#comparacao
+bne	$t7,$t6,CMOV
+add	$v1,$v1,$t3	#Soma o peso caso esteja pressionado
+CMOV:
+addi	$t2,$t2,8	#Passa para o proxima tecla do .data
+srl	$t3,$t3,1	#Divide o peso por 2
+bne	$t3,0,MOV	#Testa se as comparacoes acabaram
+#carrega os dados para analise do jogador 2
+slt	$t1,$s5,$t2	#Compara se a analise do movimento do J2 ja foi feito
+la	$t2,X		#Carrega X (para a rotina cmp)
+bne	$t1,$zero,cmp	#Passa para a verificacao do buffer caso o movimento do J2 ja tenha sido analisado
+li	$t3,8		#Reinicia o peso
+sll	$v1,$v1,16	#Shifta o registrador de retorno
+move	$t2,$s5		#Coloca a tecla 4 do .data no $t2
+move	$t1,$s4		#Coloca o KEY4 no $t1
+j	MOV
+
+#comparar o codigo com as teclas validas
+cmp:
+lw	$t1,0($t2)	#Carrega o codigo a ser testado
+beq	$t8,$t1,kcmp	#Compara o codigo. Se for uma tecla valida vai para comparacao do KeyMap
+addi	$t2,$t2,8	#Passa para o proximo código
+beq	$t1,$zero,ERRO	#Verifica se acabaram as os codigos para testar
+j	cmp
+#comparar com o keymap e descobrir se a tecla esta sendo pressionada agora
+kcmp:
+#verifica de qual jogador eh a tecla. Se $s6 = 1 entao eh o jogador 1
+slt	$s6,$t2,$s5
+lw	$t1,4($t2)	#Carrega o keymap da tecla detectada, que esta no .data
+
+#Seleciona entre o Key1 (J1) ou Key4 (J2)
+move	$t9,$s4
+beq	$s6,$zero,KJ2
+move	$t9,$s0
+KJ2:
+lw	$t3,0($t9)	
+
+and	$t3,$t1,$t3
+beq	$t1,$t3,HIT
+
+#Erro: a tecla nao eh valida ou nao esta pressionada
+ERRO:
+li	$s6,2		#Seta flag em 2 -> tecla invalida
+li	$v0,0
+li	$t8,0
+j	Contador
+
+#HIT: a tecla eh valida e esta pressionada
+HIT:
+move	$v0,$t8
+
+Contador:
+#recuperando o contador
+la	$t1, Cnt
+lw	$t1, 0($t1)
+#Armazena no Buffer se $t1 == valor max
+beq	$t1,10001,grava
+addi	$t1,$t1,1
+sw	$t1,Cnt
+#jr	$ra
+j	LP
+
+grava:
+beq	$t1,10001,EscreveBuff	#Escreve no Buffer - primeira vez
+bne	$s6,$s7,EscreveBuff	#Escreve no Buffer - segunda vez, se tiver uma tecla para escrever do outro jogador
+addi	$t1,$t1,1		#Se nao leu uma tecla do outro jogador, continua o tempinho
+move	$t8,$zero		#$t8 vai ser gravado no buffer
+beq	$t1,20001,EscreveBuff	#Se acabar o tempinho, grava 0 no buffer
+#Colocar coisas para chamar cmp
+la	$t2,X		#Primeira tecla do Jogador 1
+la	$t0,0xFF100100	#BUFFER 0
+lb	$t8,0($t0)	#ultima tecla no buffer
+j	cmp	
+
+EscreveBuff:
+
+addi	$t1,$t1,1	#Inicia o tempinho
+move	$s7,$s6		#Copia a flag do jogador que gravou a primeira vez
+addi	$t4,$t4,1	#Incrementa a flag que conta quantas vezes escreveu
+#Shift para esquerda do Buffer. Seleciona BuffJ1 ou BuffJ2 dependendo da flag $s6
+move	$t9,$s2
+beq	$s6,$zero,BJ2
+move	$t9,$s1
+BJ2:
+lw	$t2,4($t9)
+sll	$t2,$t2,8
+lb	$t5,3($t9)
+or	$t2,$t2,$t5
+sw	$t2,4($t9)
+lw	$t2,0($t9)
+sll	$t2,$t2,8
+sw	$t2,0($t9)
+#grava no ultimo Byte
+sb	$t8,0($t9)
+#Se estiver passando pela primeira vez e nenhuma tecla foi gravada, gravar nada para o outro jogador tambem
+bne	$v0,$zero,leitura2
+li	$s6,0		#seta a flag em 0
+beq	$t4,1,EscreveBuff
+#Definir coisas para o cmp
+leitura2:
+la	$t2,X		#Primeira tecla do Jogador 1
+la	$t0,0xFF100100	#BUFFER 0
+lb	$t8,0($t0)	#ultima tecla no buffer
+bne	$t4,2,cmp	#testa se ja gravou nos dois buffers
+
+#reinicializa a contagem
+la	$t1, Cnt
+sw	$zero, 0($t1)
+
+#exibe na tela (teste somente)
+lw	$a0,0($s1)
+lw	$a1,4($s1)
+lw	$a2,0($s2)
+lw	$a3,4($s2)
+
+lw	$a0,0($sp)
+lw	$s0,4($sp)
+add	$sp,$sp,8
+
+jr	$ra
+#loop da função
+#j	LP
+
+
+	
+END0:	j END0
+	nop
