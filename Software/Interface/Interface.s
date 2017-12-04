@@ -1,5 +1,7 @@
-.eqv SD_INIT_CENARIO 0x00404000		# ARQUIVO.txt sem header. Addr = Offset.[Caso tenha header Addr = Offset + (137 * 512) = Offset + 0x00011200 (defasagem de setores lógicos/físicos * tamanho do setor)]. Olhe pelo WinHex o offset do seu cartão SD
-.eqv SD_INIT_SPRITE  0x004E8000		#Endereço no cartão SD onde começam os peersonagens
+.eqv SD_INIT_CENARIO 0x005A6000		# ARQUIVO.txt sem header. Addr = Offset.[Caso tenha header Addr = Offset + (137 * 512) = Offset + 0x00011200 (defasagem de setores lógicos/físicos * tamanho do setor)]. Olhe pelo WinHex o offset do seu cartão SD
+.eqv SD_FIM_CENARIO  0x00677000
+.eqv SD_INIT_SPRITE  0x0068A000		#Endereço no cartão SD onde começam os peersonagens
+.eqv SD_FIM_SPRITE   0x006CB000		# Sprite ryu_4_1(006D0000) tem tamanho errado (6000) ou seja ryu_4_2(006D6000)
 .eqv VGA_INIT_ADDR   0xFEFFFF40		# FF000000 - C0  0xFEFFFF40  # Endereço inicial da VGA, mas existe um BUG, que pode ser concertado ao subtrair um offest no endereço da VGA
 .eqv VGA	     0xFF000000
 
@@ -8,7 +10,8 @@
 .eqv VGA_QTD_BYTE    76800		# VGA Bytes
 .eqv SPRITE_QTD_BYTE 19456
 
-.eqv Ryu_cenario     0x1005D000		#Endereço na SRAM onde começa o cenário do ryu
+.eqv Ryu_cenario     0x10095400		#0x10012000	#Endereço na SRAM onde começam os cenários
+.eqv Ryu_1_2	     0x1010F200	
 
 .eqv OFFS_SD_CENA 0x00013000		#OFFSET entre arquivos de cenário no cartão SD
 .eqv OFFS_SR_CENA 0x00012C00		#OFFSET entre cenários na SRAM (= Tamanho do cenário = 76800)
@@ -27,25 +30,28 @@ MAIN:
 	la	$a0, SD_INIT_CENARIO
 	la	$a1, SRAM_CENARIO
  	la	$a2, VGA_QTD_BYTE
+ 	la	$a3, SD_FIM_CENARIO
  	jal GET_CENARIO
  	nop
  	
- 	la	$a0, SD_INIT_SPRITE	# Endereço do ryu
+	la	$a0, SD_INIT_SPRITE	# Endereço do ryu
 	la	$a1, SRAM_SPRITE
 	la	$a2, SPRITE_QTD_BYTE
- 	jal GET_SPRITE
+	la	$a3, SD_FIM_SPRITE
+	jal GET_SPRITE
  	nop
 	 
-	la	$a0, VGA_INIT_ADDR
+ 	la	$a0, VGA_INIT_ADDR 
 	li	$a1, Ryu_cenario
 	li	$a3, 76800
  	jal PRINT_CENARIO
- 	nop
+ 	nop 	
  	
  	la 	$t2, PlayerPos
-	lw	$a0, 0($t2)	#a0 tem Xo(1) 
+	lw	$a0, 0($t2)	#a0 tem Xo(1)
 	lw	$a1, 4($t2)	#a1 tem Y0(1)
-	li 	$a3, SRAM_SPRITE
+	lw 	$a2, 8($a2)	#a2 tem Xo(2)
+	li 	$a3, Ryu_1_2
  	jal PRINT_SPRITE
  	nop
  	j END
@@ -53,11 +59,12 @@ MAIN:
  	
  ##################################################################################################################################
 GET_CENARIO:
- 	addi	$sp, $sp, -16	#salva os valores de a0, a1 e a2 na pilha para recuperá=los caso sejam alterados pelo syscall
+ 	addi	$sp, $sp, -20	#salva os valores de a0, a1 e a2 na pilha para recuperá=los caso sejam alterados pelo syscall
  	sw	$a0, 0($sp)
  	sw	$a1, 4($sp)
  	sw	$a2, 8($sp)
- 	sw	$ra, 12($sp)
+ 	sw	$a3, 12($sp)
+ 	sw	$ra, 16($sp)
 	
 	li	$v0, 49			# Syscall 49 - SD Card Read
 	syscall
@@ -65,10 +72,11 @@ GET_CENARIO:
  	lw	$a0, 0($sp)
  	lw	$a1, 4($sp)
  	lw	$a2, 8($sp)
- 	lw	$ra, 12($sp)
- 	addi	$sp, $sp, 16
+ 	lw	$a3, 12($sp)
+ 	lw	$ra, 16($sp)
+ 	addi	$sp, $sp, 20
 	
-	beq	$a0,0x004D5000, FIM_CENARIO
+	beq	$a0,$a3, FIM_CENARIO
 	addi	$a0, $a0, OFFS_SD_CENA
 	addi	$a1, $a1, OFFS_SR_CENA
 	j	GET_CENARIO
@@ -77,11 +85,12 @@ FIM_CENARIO: jr $ra
 	nop
 ####################################################################################################################################
 GET_SPRITE: 		
- 	addi	$sp, $sp, -16	#salva os valores de a0, a1 e a2 na pilha para recuperá=los caso sejam alterados pelo syscall
+ 	addi	$sp, $sp, -20	#salva os valores de a0, a1 e a2 na pilha para recuperá=los caso sejam alterados pelo syscall
  	sw	$a0, 0($sp)
  	sw	$a1, 4($sp)
  	sw	$a2, 8($sp)
- 	sw	$ra, 12($sp)
+ 	sw	$a3, 12($sp)
+ 	sw	$ra, 16($sp)
  	
 	li	$v0, 49			# Syscall 49 - SD Card Read
 	syscall
@@ -89,10 +98,11 @@ GET_SPRITE:
  	lw	$a0, 0($sp)
  	lw	$a1, 4($sp)
  	lw	$a2, 8($sp)
- 	lw	$ra, 12($sp)
- 	addi	$sp, $sp, 16
+ 	lw	$a3, 12($sp)
+ 	lw	$ra, 16($sp)
+ 	addi	$sp, $sp, 20
 	
-	beq	$a0,0x4ED000,FIM_SPRITE
+	beq	$a0,$a3,FIM_SPRITE
 	addi	$a0, $a0, OFFS_SD_CHAR
 	addi	$a1, $a1, OFFS_SR_CHAR
 	j	GET_SPRITE
@@ -133,7 +143,7 @@ PRINT_SPRITE:
  	sw	$t3, 12($sp)
  	sw	$t5, 16($sp)
  	sw	$t6, 20($sp)
-
+ 	
 	li 	$t0, 320
 	mult 	$a1, $t0		# 320*y
 	mflo	$t1
@@ -145,7 +155,7 @@ PRINT_SPRITE:
 	move	$t2, $zero
 	move	$t3, $zero
 	
-	addi $t6,$zero, 19200
+	addi $t6,$zero, 5400
 LOOP:	
 	lb 	$t5,0($a3)
 	sb 	$t5, 0($t6)
