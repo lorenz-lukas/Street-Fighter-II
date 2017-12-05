@@ -11,7 +11,8 @@
 .eqv SPRITE_QTD_BYTE 19456
 
 .eqv Ryu_cenario     0x10095400		#0x10012000	#Endereço na SRAM onde começam os cenários
-.eqv Ryu_1_2	     0x1010F200	
+.eqv Ryu_x_x	     0x1010F200	
+.eqv Ryu_1_2	     0x100F3000
 
 .eqv OFFS_SD_CENA 0x00013000		#OFFSET entre arquivos de cenário no cartão SD
 .eqv OFFS_SR_CENA 0x00012C00		#OFFSET entre cenários na SRAM (= Tamanho do cenário = 76800)
@@ -22,7 +23,7 @@
 .eqv TamY	  123
 
 .data
-PlayerPos:	.word -30,100,0,0  # (Xo(1),Yo(1),Xo(2),Yo(2))    Posição inicial dos dois players	-81<x<178
+PlayerPos:	.word -30,100,110,100  # (Xo(1),Yo(1),Xo(2),Yo(2))    Posição inicial dos dois players	-81<x<178
 .align 4	
 
 .text
@@ -52,8 +53,20 @@ MAIN:
 	lw	$a1, 4($t2)	#a1 tem Y0(1)
 	lw 	$a2, 8($a2)	#a2 tem Xo(2)
 	li 	$a3, Ryu_1_2
+
  	jal PRINT_SPRITE
  	nop
+ 	
+ 	
+	add 	$t9, $zero, $a2
+	move 	$a2, $a0
+	move 	$a0, $t9
+	li 	$a3, Ryu_x_x
+	
+ 	jal PRINT_SPRITE
+	nop
+	
+	 	 	
  	j END
  	nop
  	
@@ -153,32 +166,43 @@ PRINT_SPRITE:
 	add	$t0,$t1,$t0    # endereço inicial de impressão do sprite ( VGA + 320*X+Y)
 	
 	move	$t2, $zero
-	move	$t3, $zero
-	
+	move	$t3, $zero	# INICIO DO PRINT
+	move	$t8, $zero
+	addi	$t9, $zero, TamX
+	add $t4, $zero, 1	# CONTADOR
 	addi $t6,$zero, 5400
+	
+	slt $t1, $a0, $a2	# Se X do player analisado é menor que do outro player 
+	bne $t1, $zero, LOOP	# Caso player esteja na esquerda da tela, vai direto pra loop. 
+	addi $t3, $zero, TamX	# Tamanho em X
+	move $t8, $t3	
+	addi $t4, $zero, -1
+	add $t9, $zero, $zero
+	
 LOOP:	
 	lb 	$t5,0($a3)
 	sb 	$t5, 0($t6)
 	addi	$a3, $a3, 1
-	addi	$t6, $t6, 1
-	addi	$t3, $t3, 1
-	bne	$t3, TamX, LOOP
+	add	$t6, $t6, $t4
+	add	$t3, $t3, $t4
+	bne	$t3, $t9, LOOP
 ############	LOOP EXTERNO: 	
 	addi 	$t6, $t0, 320
 	move 	$t0,$t6			##########
 	addi 	$t2, $t2, 1
-	move 	$t3, $zero	
+	move 	$t3, $t8	
 	bne 	$t2, TamY, LOOP
-
- 	sw	$t0, 0($sp)
- 	sw	$t1, 4($sp)
- 	sw	$t2, 8($sp)
- 	sw	$t3, 12($sp)
- 	sw	$t5, 16($sp)
- 	sw	$t6, 20($sp)
+	
+ 	lw	$t0, 0($sp)
+ 	lw	$t1, 4($sp)
+ 	lw	$t2, 8($sp)
+ 	lw	$t3, 12($sp)
+ 	lw	$t5, 16($sp)
+ 	lw	$t6, 20($sp)
  	addi	$sp, $sp, 24
 	
 	jr $ra
 	nop
+
 END:	j END
 	nop
