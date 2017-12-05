@@ -65,13 +65,13 @@ move	$a1,$zero
 move	$a2,$zero
 #inicializa os valores de retorno
 move	$v0,$zero
-move	$v0,$zero
+move	$v1,$zero
 
 #comparar o codigo com as teclas validas
 cmp:
 lw	$t1,0($t2)	#Carrega o codigo a ser testado
 beq	$t8,$t1,kcmp	#Compara o codigo. Se for uma tecla valida vai para comparacao do KeyMap
-addi	$t2,$t2,8	#Passa para o proximo código
+addi	$t2,$t2,8	#Passa para o proximo cÃ³digo
 beq	$t1,$zero,TesteFim	#Verifica se acabaram as os codigos para testar
 j	cmp
 #comparar com o keymap e descobrir se a tecla esta sendo pressionada agora
