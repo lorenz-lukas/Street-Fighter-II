@@ -65,7 +65,8 @@ move	$a1,$zero
 move	$a2,$zero
 #inicializa os valores de retorno
 move	$v0,$zero
-move	$v1,$zero
+#move	$v1,$zero	#Invisivel para humanos
+move	$k0,$zero
 
 #comparar o codigo com as teclas validas
 cmp:
@@ -91,14 +92,14 @@ and	$t3,$t1,$t3		#'Filtra' o KeyMap
 bne	$t1,$t3,TesteFim	#Verifica se a tecla esta sendo pressionada
 
 #A tecla eh valida e esta pressionada:
-beq	$t6,$zero,TesteJ2	#Verifica de quem eh a tecla atual
+beq	$s6,$zero,TesteJ2	#Verifica de quem eh a tecla atual
 bne	$a1,$zero,TesteFim	#Verifica se ja escreveu na saida do J1
+sll	$t8,$t8,16		#Desloca para escrever na saida do J1
 or	$v0,$v0,$t8		#Escreve na saida do J1
 addi	$a1,$a1,1		#Indica que ja leu para o J1
 j	TesteFim
 TesteJ2:
 bne	$a2,$zero,TesteFim	#Verifica se ja escreveu na saida do J2
-sll	$t8,$t8,16		#Desloca para escrever na saida do J2
 or	$v0,$v0,$t8		#Escreve na saida do J2
 addi	$a2,$a2,1		#Indica que ja leu para o J2
 
@@ -107,6 +108,7 @@ lb	$t8,0($t0)		#Carrega a ultima tecla no buffer
 la	$t2,X			#Primeira tecla do Jogador 1
 addi	$t4,$t4,1		#incrementa o contador de leitura
 and	$a0,$a1,$a2		#Verifica se ja leu os dois valores
+
 beq	$a0,1,AnaliseMov	
 bne	$t4,100,cmp		#limite de iteracoes para ler as teclas dos jogadores
 
@@ -114,6 +116,7 @@ AnaliseMov:
 #Analisa o movimento (andar para direita ou esquerda e abaixar)
 li	$t3,8		#Carrega o peso da tecla
 move	$t1,$s0		#Copia o KEY1 para $t1
+move	$v1,$zero
 MOV:
 lw	$t7,0($t1)	#carrega o KEY
 lw	$t6,4($t2)	#carrega o keymap do .data
@@ -125,6 +128,7 @@ CMOV:
 addi	$t2,$t2,8	#Passa para o proxima tecla do .data
 srl	$t3,$t3,1	#Divide o peso por 2
 bne	$t3,0,MOV	#Testa se as comparacoes acabaram
+
 #carrega os dados para analise do jogador 2
 slt	$t1,$s5,$t2	#Compara se a analise do movimento do J2 ja foi feito
 bne	$t1,$zero,Buff	#Passa para a verificacao do buffer caso o movimento do J2 ja tenha sido analisado
