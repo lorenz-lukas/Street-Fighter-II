@@ -48,9 +48,9 @@ kPDown:	.word 0x04000000
 END:	.word 0x00000000
 .text
 
-LP:
+LeTeclado:
 
-#Salvar os registradores $s e $a
+#Salvar os registradores $s e $a?
 
 #carrega o ultimo codigo do Buffer 0 e prepara para comparacao
 la	$t0,0xFF100100	#BUFFER 0
@@ -71,7 +71,7 @@ move	$v1,$zero
 cmp:
 lw	$t1,0($t2)	#Carrega o codigo a ser testado
 beq	$t8,$t1,kcmp	#Compara o codigo. Se for uma tecla valida vai para comparacao do KeyMap
-addi	$t2,$t2,8	#Passa para o proximo código
+addi	$t2,$t2,8	#Passa para o proximo codigo
 beq	$t1,$zero,TesteFim	#Verifica se acabaram as os codigos para testar
 j	cmp
 #comparar com o keymap e descobrir se a tecla esta sendo pressionada agora
@@ -87,15 +87,14 @@ move	$t9,$s0
 KJ2:
 lw	$t3,0($t9)	
 
-and	$t3,$t1,$t3
-beq	$t1,$t3,HIT
+and	$t3,$t1,$t3		#'Filtra' o KeyMap
+bne	$t1,$t3,TesteFim	#Verifica se a tecla esta sendo pressionada
 
-#HIT: a tecla eh valida e esta pressionada
-HIT:
+#A tecla eh valida e esta pressionada:
 beq	$t6,$zero,TesteJ2	#Verifica de quem eh a tecla atual
 bne	$a1,$zero,TesteFim	#Verifica se ja escreveu na saida do J1
 or	$v0,$v0,$t8		#Escreve na saida do J1
-addi	$a1,$a1,1			#Indica que ja leu para o J1
+addi	$a1,$a1,1		#Indica que ja leu para o J1
 j	TesteFim
 TesteJ2:
 bne	$a2,$zero,TesteFim	#Verifica se ja escreveu na saida do J2
@@ -104,12 +103,12 @@ or	$v0,$v0,$t8		#Escreve na saida do J2
 addi	$a2,$a2,1		#Indica que ja leu para o J2
 
 TesteFim:
-lb	$t8,0($t0)	#ultima tecla no buffer
-la	$t2,X		#Primeira tecla do Jogador 1
+lb	$t8,0($t0)		#Carrega a ultima tecla no buffer
+la	$t2,X			#Primeira tecla do Jogador 1
 addi	$t4,$t4,1		#incrementa o contador de leitura
-and	$a0,$a1,$a2
-beq	$a0,1,AnaliseMov
-bne	$t4,100,cmp	#limite de iteracoes para ler as teclas dos jogadores
+and	$a0,$a1,$a2		#Verifica se ja leu os dois valores
+beq	$a0,1,AnaliseMov	
+bne	$t4,100,cmp		#limite de iteracoes para ler as teclas dos jogadores
 
 AnaliseMov:
 #Analisa o movimento (andar para direita ou esquerda e abaixar)
@@ -118,9 +117,9 @@ move	$t1,$s0		#Copia o KEY1 para $t1
 MOV:
 lw	$t7,0($t1)	#carrega o KEY
 lw	$t6,4($t2)	#carrega o keymap do .data
-and	$t7,$t6,$t7
+and	$t7,$t6,$t7	#'Filtra' o Keymap
 #comparacao
-bne	$t7,$t6,CMOV
+bne	$t7,$t6,CMOV	#Verifica se esta pressionado
 add	$v1,$v1,$t3	#Soma o peso caso esteja pressionado
 CMOV:
 addi	$t2,$t2,8	#Passa para o proxima tecla do .data
@@ -144,9 +143,8 @@ beq	$t1,8001,grava
 addi	$t1,$t1,1
 sw	$t1,Cnt
 #jr	$ra
-j	LP
+j	LeTeclado
 
-#Colocar a escrita nos dois buffers sempre e acabar
 grava:
 move	$a0,$zero	#Inicializa o indicador de escrita
 move	$t9,$s2		#Seleciona o BuffJ1
@@ -171,4 +169,5 @@ andi	$t8,$t8,0xFF0000
 j	EscreveBuff	
 
 fim:
-j	LP
+#jr	$ra
+j	LeTeclado

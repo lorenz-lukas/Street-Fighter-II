@@ -41,10 +41,10 @@ kJ:	.word 0x08000000
 #Teclas do jogador 2
 T4:	.word 0x6B
 k4:	.word 0x00000800
-T5:	.word 0x73
-k5:	.word 0x00080000
 T6:	.word 0x74
 k6:	.word 0x00100000
+T5:	.word 0x73
+k5:	.word 0x00080000
 T8:	.word 0x75
 k8:	.word 0x00200000
 Ins:	.word 0x70
@@ -61,6 +61,19 @@ PDown:	.word 0x7A
 kPDown:	.word 0x04000000
 END:	.word 0x00000000
 .text
+move	$k0,$zero
+
+MAIN:
+jal	LP
+la	$t0,C
+lw	$t0,0($t0)
+beq	$v0,$t0,fimMain
+j 	MAIN
+fimMain:
+move	$s0,$zero
+addi	$k0,$k0,1
+j	MAIN
+l:j	l
 
 LP:
 
@@ -144,8 +157,8 @@ lw	$t1, 0($t1)
 beq	$t1,10001,grava
 addi	$t1,$t1,1
 sw	$t1,Cnt
-#jr	$ra
-j	LP
+jr	$ra
+#j	LP
 
 grava:
 beq	$t1,10001,EscreveBuff	#Escreve no Buffer - primeira vez
@@ -200,6 +213,6 @@ lw	$a1,4($s1)
 lw	$a2,0($s2)
 lw	$a3,4($s2)
 
-#jr	$ra
+jr	$ra
 #loop da função
-j	LP
+#j	LP
