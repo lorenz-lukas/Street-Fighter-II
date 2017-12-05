@@ -1,0 +1,174 @@
+.data
+.align 2
+#Teclas do jogador 1
+BuffJ1:	.space 8		#buffer que registra a sequencia de teclas do jogador 1
+BuffJ2:	.space 8		#buffer que registra a sequencia de teclas do jogador 2		
+Cnt:	.word 0	
+X:	.word 0x22		#codigo da tecla
+kX:	.word 0x00000004	#codigo do keymap
+V:	.word 0x2A
+kV:	.word 0x00000400
+C:	.word 0x21
+kC:	.word 0x00000002
+D:	.word 0x23
+kD:	.word 0x00000008
+T:	.word 0x2C
+kT:	.word 0x00001000
+Y:	.word 0x35
+kY:	.word 0x00200000
+U:	.word 0x3C
+kU:	.word 0x10000000
+G:	.word 0x34
+kG:	.word 0x00100000
+H:	.word 0x33
+kH:	.word 0x00080000
+J:	.word 0x3B
+kJ:	.word 0x08000000
+#Teclas do jogador 2
+T4:	.word 0x6B
+k4:	.word 0x00000800
+T5:	.word 0x73
+k5:	.word 0x00080000
+T6:	.word 0x74
+k6:	.word 0x00100000
+T8:	.word 0x75
+k8:	.word 0x00200000
+Ins:	.word 0x70
+kIns:	.word 0x00010000
+Home:	.word 0x6C
+kHome:	.word 0x00001000
+Pup:	.word 0x7D
+kPup:	.word 0x20000000
+Del:	.word 0x71
+kDel:	.word 0x00020000
+End:	.word 0x69
+kEnd:	.word 0x00000200
+PDown:	.word 0x7A
+kPDown:	.word 0x04000000
+END:	.word 0x00000000
+.text
+
+LP:
+
+#Salvar os registradores $s e $a
+
+#carrega o ultimo codigo do Buffer 0 e prepara para comparacao
+la	$t0,0xFF100100	#BUFFER 0
+la	$s0,0xFF100524	#KEY 1
+la	$s4,0xFF10052C	#KEY 4
+lb	$t8,0($t0)	#ultima tecla no buffer
+la	$t2,X		#Primeira tecla do Jogador 1
+la	$s5,T4		#Primeira tecla do Jogador 2
+move	$t4,$zero	#inicializa o contador da comparacao
+#Carrega os indicadores de escrita de cada jogador
+move	$a1,$zero
+move	$a2,$zero
+#inicializa os valores de retorno
+move	$v0,$zero
+move	$v0,$zero
+
+#comparar o codigo com as teclas validas
+cmp:
+lw	$t1,0($t2)	#Carrega o codigo a ser testado
+beq	$t8,$t1,kcmp	#Compara o codigo. Se for uma tecla valida vai para comparacao do KeyMap
+addi	$t2,$t2,8	#Passa para o proximo código
+beq	$t1,$zero,TesteFim	#Verifica se acabaram as os codigos para testar
+j	cmp
+#comparar com o keymap e descobrir se a tecla esta sendo pressionada agora
+kcmp:
+#verifica de qual jogador eh a tecla. Se $s6 = 1 entao eh o jogador 1
+slt	$s6,$t2,$s5
+lw	$t1,4($t2)	#Carrega o keymap da tecla detectada, que esta no .data
+
+#Seleciona entre o Key1 (J1) ou Key4 (J2)
+move	$t9,$s4
+beq	$s6,$zero,KJ2
+move	$t9,$s0
+KJ2:
+lw	$t3,0($t9)	
+
+and	$t3,$t1,$t3
+beq	$t1,$t3,HIT
+
+#HIT: a tecla eh valida e esta pressionada
+HIT:
+beq	$t6,$zero,TesteJ2	#Verifica de quem eh a tecla atual
+bne	$a1,$zero,TesteFim	#Verifica se ja escreveu na saida do J1
+or	$v0,$v0,$t8		#Escreve na saida do J1
+addi	$a1,$a1,1			#Indica que ja leu para o J1
+j	TesteFim
+TesteJ2:
+bne	$a2,$zero,TesteFim	#Verifica se ja escreveu na saida do J2
+sll	$t8,$t8,16		#Desloca para escrever na saida do J2
+or	$v0,$v0,$t8		#Escreve na saida do J2
+addi	$a2,$a2,1		#Indica que ja leu para o J2
+
+TesteFim:
+lb	$t8,0($t0)	#ultima tecla no buffer
+la	$t2,X		#Primeira tecla do Jogador 1
+addi	$t4,$t4,1		#incrementa o contador de leitura
+and	$a0,$a1,$a2
+beq	$a0,1,AnaliseMov
+bne	$t4,100,cmp	#limite de iteracoes para ler as teclas dos jogadores
+
+AnaliseMov:
+#Analisa o movimento (andar para direita ou esquerda e abaixar)
+li	$t3,8		#Carrega o peso da tecla
+move	$t1,$s0		#Copia o KEY1 para $t1
+MOV:
+lw	$t7,0($t1)	#carrega o KEY
+lw	$t6,4($t2)	#carrega o keymap do .data
+and	$t7,$t6,$t7
+#comparacao
+bne	$t7,$t6,CMOV
+add	$v1,$v1,$t3	#Soma o peso caso esteja pressionado
+CMOV:
+addi	$t2,$t2,8	#Passa para o proxima tecla do .data
+srl	$t3,$t3,1	#Divide o peso por 2
+bne	$t3,0,MOV	#Testa se as comparacoes acabaram
+#carrega os dados para analise do jogador 2
+slt	$t1,$s5,$t2	#Compara se a analise do movimento do J2 ja foi feito
+bne	$t1,$zero,Buff	#Passa para a verificacao do buffer caso o movimento do J2 ja tenha sido analisado
+li	$t3,8		#Reinicia o peso
+sll	$v1,$v1,16	#Shifta o registrador de retorno
+move	$t2,$s5		#Coloca a tecla 4 do .data no $t2
+move	$t1,$s4		#Coloca o KEY4 no $t1
+j	MOV
+
+Buff:
+#recuperando o contador
+la	$t1, Cnt
+lw	$t1, 0($t1)
+#Armazena no Buffer se $t1 == valor max
+beq	$t1,8001,grava
+addi	$t1,$t1,1
+sw	$t1,Cnt
+#jr	$ra
+j	LP
+
+#Colocar a escrita nos dois buffers sempre e acabar
+grava:
+move	$a0,$zero	#Inicializa o indicador de escrita
+move	$t9,$s2		#Seleciona o BuffJ1
+andi	$t8,$t8,0xFF	#Seleciona o dado a ser gravado
+EscreveBuff:
+#Shift para esquerda do Buffer. Seleciona BuffJ1 ou BuffJ2 dependendo da flag $s6
+lw	$t2,4($t9)
+sll	$t2,$t2,8
+lb	$t5,3($t9)
+or	$t2,$t2,$t5
+sw	$t2,4($t9)
+lw	$t2,0($t9)
+sll	$t2,$t2,8
+sw	$t2,0($t9)
+#grava no ultimo Byte
+sb	$t8,0($t9)
+
+bne	$a0,$zero,fim	#Verifica se ja escreveu nos dois
+move	$t9,$s1		#Seleciona o BuffJ2
+addi	$a0,$a0,1	#Indica que um ja ta escrito
+andi	$t8,$t8,0xFF0000
+j	EscreveBuff	
+
+fim:
+j	LP
