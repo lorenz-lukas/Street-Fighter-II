@@ -23,11 +23,31 @@
 .eqv TamY	  123
 
 .data
-PlayerPos:	.word -30,100,110,100  # (Xo(1),Yo(1),Xo(2),Yo(2))    Posição inicial dos dois players	-81<x<178
+PlayerPos:	.word -30,100,100,100  # (Xo(1),Yo(1),Xo(2),Yo(2))    Posição inicial dos dois players	-81<x<178
 .align 4	
 
 .text
 MAIN:
+	jal LOAD_SD_DATA
+	nop
+	
+	la 	$t2, PlayerPos
+	lw	$a0, 0($t2)	#a0 tem Xo(1)
+	lw	$a1, 4($t2)	#a1 tem Y0(1)
+	lw 	$a2, 8($t2)	#a2 tem Xo(2)
+	li 	$a3, Ryu_1_2
+	lw	$s0, 12($t2)
+	li	$s1, Ryu_x_x	
+	jal IMPRIME   # $a0 = X1, $a1 =Y1, $a2 = X2, $a3 = Sprite1, $s0 = Y2, $s1 = Sprite2
+	nop
+	
+	j END
+	nop
+	
+LOAD_SD_DATA:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
 	la	$a0, SD_INIT_CENARIO
 	la	$a1, SRAM_CENARIO
  	la	$a2, VGA_QTD_BYTE
@@ -40,7 +60,22 @@ MAIN:
 	la	$a2, SPRITE_QTD_BYTE
 	la	$a3, SD_FIM_SPRITE
 	jal GET_SPRITE
+ 	nop	
+ 	
+ 	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+ 	jr $ra
  	nop
+ 	
+#PRINTA CENÀRIO E SPRITES COM ENDEREÇO RELATIVO
+IMPRIME: 	 
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	move $s2, $a0
+	move $s3, $a1
+	move $s4, $a2
+	move $s5, $a3
 	 
  	la	$a0, VGA_INIT_ADDR 
 	li	$a1, Ryu_cenario
@@ -48,26 +83,26 @@ MAIN:
  	jal PRINT_CENARIO
  	nop 	
  	
- 	la 	$t2, PlayerPos
-	lw	$a0, 0($t2)	#a0 tem Xo(1)
-	lw	$a1, 4($t2)	#a1 tem Y0(1)
-	lw 	$a2, 8($a2)	#a2 tem Xo(2)
-	li 	$a3, Ryu_1_2
-
+ 	move $a0, $s2
+	move $a1, $s3 # Y1
+	move $a2, $s4
+	move $a3, $s5 # Sprite1
  	jal PRINT_SPRITE
  	nop
  	
- 	
 	add 	$t9, $zero, $a2
 	move 	$a2, $a0
-	move 	$a0, $t9
-	li 	$a3, Ryu_x_x
+	move 	$a0, $t9 
+	move	$a1, $s0 # Y2
+	move 	$a3, $s1 # Sprite2
 	
  	jal PRINT_SPRITE
 	nop
 	
-	 	 	
- 	j END
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+		 	
+ 	jr $ra
  	nop
  	
  ##################################################################################################################################
@@ -125,11 +160,10 @@ FIM_SPRITE:	jr $ra
 	nop
 ######################################################################################################################################
 PRINT_CENARIO:
-	addi	$sp, $sp, -12
+	addi	$sp, $sp, -8
  	sw	$t2, 0($sp)
  	sw	$t4, 4($sp)
- 	sw	$ra, 12($sp)
-	
+ 	
 LOOP_CENARIO:
  	lw	$t2, 0($a1)
 	sw	$t2, 0($a0)
@@ -141,8 +175,7 @@ LOOP_CENARIO:
 	
  	lw	$t2, 0($sp)
  	lw	$t4, 4($sp)
- 	lw	$ra, 12($sp)
-	addi	$sp, $sp, 12
+	addi	$sp, $sp, 8
 		
 	jr $ra
 	nop
