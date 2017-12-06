@@ -1,7 +1,7 @@
 .eqv SD_INIT_CENARIO 0x005A6000		# ARQUIVO.txt sem header. Addr = Offset.[Caso tenha header Addr = Offset + (137 * 512) = Offset + 0x00011200 (defasagem de setores lógicos/físicos * tamanho do setor)]. Olhe pelo WinHex o offset do seu cartão SD
 .eqv SD_FIM_CENARIO  0x00677000
 .eqv SD_INIT_SPRITE  0x0068A000		#Endereço no cartão SD onde começam os peersonagens
-.eqv SD_FIM_SPRITE   0x006CB000		# Sprite ryu_4_1(006D0000) tem tamanho errado (6000) ou seja ryu_4_2(006D6000)
+.eqv SD_FIM_SPRITE   0x007A8000		# Sprite ryu_4_1(006D0000) tem tamanho errado (6000) ou seja ryu_4_2(006D6000)
 .eqv VGA_INIT_ADDR   0xFEFFFF40		# FF000000 - C0  0xFEFFFF40  # Endereço inicial da VGA, mas existe um BUG, que pode ser concertado ao subtrair um offest no endereço da VGA
 .eqv VGA	     0xFF000000
 
@@ -10,8 +10,8 @@
 .eqv VGA_QTD_BYTE    76800		# VGA Bytes
 .eqv SPRITE_QTD_BYTE 19456
 
-.eqv Ryu_cenario     0x10095400		#0x10012000	#Endereço na SRAM onde começam os cenários
-.eqv Ryu_x_x	     0x1010F200	
+.eqv Ryu_cenario     0x100E0400		#0x10012000	#Endereço na SRAM onde começam os cenários
+.eqv Ken_x_x	     0X1017FA00#0x1010F200	
 .eqv Ryu_1_2	     0x100F3000
 
 .eqv OFFS_SD_CENA 0x00013000		#OFFSET entre arquivos de cenário no cartão SD
@@ -87,8 +87,8 @@ MAIN:
 	lw	$a1, 4($t2)	#a1 tem Y0(1)
 	lw 	$a2, 8($t2)	#a2 tem Xo(2)
 	la 	$a3, Ryu_1_2
-	lw	$s0, 12($t2)
-	li	$s1, Ryu_x_x	
+	lw	$s0, 12($t2)	#s0 tem Y0(2)
+	li	$s1, Ken_x_x	
 	add 	$v0, $zero, $zero
 WHILE:	
 	la $a3, Ryu_1_2
@@ -114,7 +114,6 @@ WHILE:
 	lw $s1, 20($sp)
 	
 	andi $s7, $v1, 0XFFFF0000
-	srl $s7, $s7, 16
 	jal MOVIMENTO
 	nop
 	
@@ -127,8 +126,7 @@ WHILE:
 	#jal ATAQUE
 	#nop
 	
-	#jal HITBOX
-	#nop
+#	jal COLISAO_BORDA
 	
 	#andi $s7, $v0, 0x0000FFFF
 	#jal MOVIMENTO
@@ -514,12 +512,18 @@ MOVIMENTO: # $a0 = X1, $a1 =Y1, $a2 = X2, $a3 = Sprite1, $s0 = Y2, $s1 = Sprite2
  	addi $sp, $sp, -8
  	sw $ra, 0($sp)
  	sw $a3, 4($sp)
+ 	beq $s7, 2, BAIXO		#21h
 	beq $s7, 4, DIREITA		#2Ah
-#	beq $s7, 8 , ESQUERDA		#22h
+	beq $s7, 8 , ESQUERDA		#22h
+	
+	beq $s7, 0x20000, BAIXO		#21h
+	beq $s7, 0x40000, DIREITA	
+	beq $s7, 0x80000 , ESQUERDA
 #	beq $s7, 1, PULO		#23h
 #	beq $s7, 5, PULO_FRENTE
 #	beq $s7, 9, PULO_TRAS
-#	beq $s7, 2, BAIXO		#21h
+
+
 #	beq $s7, 6, BAIXO_FRENTE	#21h
 #	beq $s7, 10, BAIXO_TRAS		#21h
 ##### DEFAULT: 
@@ -533,20 +537,24 @@ BACK_MAIN:
 	jr $ra
 	nop
 
-DIREITA:
+DIREITA:		#PARA IMPLEMENTAR A HITBOX, TROQUE O ADDI POR ADD, 2 POR S3 E NA ESQUERDA ADDI POR -2
 	addi $a0, $a0, 2
+#	add $a0, $a0, $s3
 	la $a3, 0x10121E00
 	jal IMPRIME
 	nop
 	addi $a0, $a0, 2
+#	add $a0, $a0, $s3
 	la $a3, 0x10126900
 	jal IMPRIME
 	nop
 	addi $a0, $a0, 2
+#	add $a0, $a0, $s3
 	la $a3, 0x1012B400
 	jal IMPRIME
 	nop
 	addi $a0, $a0, 2
+#	add $a0, $a0, $s3
 	la $a3, 0x1012FF00 
 	jal IMPRIME
 	nop
@@ -555,22 +563,26 @@ DIREITA:
 	nop
 ESQUERDA:
 	addi $a0, $a0, -2
-	#la $a3, 
-	jal IMPRIME
-	nop
-	addi $a0, $a0,-2
-	#addi $a3, $a3,
+#	sub $a0, $a0, $s3
+	la $a3, 0x10134A00
 	jal IMPRIME
 	nop
 	addi $a0, $a0, -2
-	#addi $a3, $a3,
+#	sub $a0, $a0, $s3
+	addi $a3, $a3, 0x4B00
 	jal IMPRIME
 	nop
 	addi $a0, $a0, -2
-	#addi $a3, $a3,
+#	sub $a0, $a0, $s3
+	addi $a3, $a3, 0x4B00
 	jal IMPRIME
 	nop
-	#addi $a3, $a3,-
+	addi $a0, $a0, -2
+#	sub $a0, $a0, $s3
+	addi $a3, $a3, 0x4B00
+	jal IMPRIME
+	nop
+	la $a3, 0x100F3000
 	j BACK_MAIN
 	nop
 PULO:
@@ -599,9 +611,13 @@ PULO_FRENTE:
 
 PULO_TRAS:
 
-BAIXO:	
+BAIXO:	 #PERSONAGEM ABAIXA E VOLTA, DEVERIA FICAR ABAIXADO ENQUANTO O BOTTÃO ABAIXA É SEGURADO
 
-	#la $a3, 0x1010A700
+	la $a3, 0x10147600
+	jal IMPRIME
+	nop
+	jal IMPRIME
+	nop
 	jal IMPRIME
 	nop
 	j BACK_MAIN
@@ -623,5 +639,47 @@ ATAQUE:  # RETORNA PRA MAIN PELO BACK_MAIN
  ###### USAR LÓGICA DO MOVIMENTO, ALTERAR SPRITES SEM ALTERAR A POSIÇÂO	
 
 #################################################################################################################################
+COLIDE:
+#	la $a0,MSG_COLIDE
+#	li $v0,4
+#	syscall
+	
+#	move $a0,$t9
+#	li $v0,1
+#	syscall	
+#	li $v0,1
+	li $s3, 0
+	
+	jr $ra
+##################################################################################################################################
+NAO_COLIDE:
+#	la $a0,MSG_NAO_COLIDE
+#	li $v0,4
+#	syscall	
+#	li $v0,0
+	li $s3, 2
+	
+	jr $ra
+##################################################################################################################################
+COLISAO_BORDA:
+	# recebe como parametro	$a0 = posicao Y
+	#  Detector de colisao			 	      #
+	#  $a0 = Posicao x -> ret1.y	do SPRITE	      #
+	#  $a1 = Posicao y -> ret1.x	do SPRITE	      #
+	#  $a2 = Posicao x2 -> ret2.y	do SPRITE	      #
+	#  $a3 = Posicao y2 -> ret2.x	do SPRITE	      #
+
+	li $t0, 210		#menor posicao possivel do Y para nao ter colisao
+	li $t1, 270		#maior posicao possivel do Y para nao ter colisao
+	
+	addi $s3, $a0, -8
+	
+	bge $s3,$t1,NAO_COLIDE
+	
+	slt $t3,$s3,$t0		# se $t3=1 nao colide
+	bne $t3,$zero,NAO_COLIDE
+	
+	j COLIDE
+##################################################################################################################################
 FIM:	j FIM
 	nop
