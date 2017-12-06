@@ -64,7 +64,6 @@
 .data
 .align 2
 PlayerPos:	.word -30, 100, 75, 100  # (Xo(1),Yo(1),Xo(2),Yo(2))    Posição inicial dos dois players	-81<x<178
-.align 2
 #Teclas do jogador 1
 BuffJ1:	.space 8		#buffer que registra a sequencia de teclas do jogador 1
 BuffJ2:	.space 8		#buffer que registra a sequencia de teclas do jogador 2		
@@ -111,14 +110,16 @@ kEnd:	.word 0x00000200
 PDown:	.word 0x7A
 kPDown:	.word 0x04000000
 END:	.word 0x00000000
+.align 4	
+
 .text
 MAIN:
-	#j MENU # $v0 = Player 1, $v1 = Player2
+	#jal MENU # $v0 = Player 1, $v1 = Player2
 	#nop
-FIM_MENU:	
+SaiMenu:
 	jal LOAD_SD_DATA
 	nop
-	
+
 	la 	$t2, PlayerPos
 	lw	$a0, 0($t2)	#a0 tem Xo(1)
 	lw	$a1, 4($t2)	#a1 tem Y0(1)
@@ -150,15 +151,15 @@ WHILE:
 	lw $s0, 16($sp)
 	lw $s1, 20($sp)
 	
-	andi $s7, $v1, 0x0000FFFF
-	andi $s6, $v1, 0XFFFF0000
+	andi $s7, $v1, 0x0000FFFF	 #P2
+	andi $s6, $v1, 0XFFFF0000	 #P1
 	srl $s6, $s6, 16
 	jal MOVIMENTO
 	nop
+
 	
-	#andi $s6, $v0, 0XFFFF0000
-	#srl $s6, $s6, 16
-	#andi $s7, $v1, 0x0000FFFF
+	#andi $s7, $v0, 0XFFFF0000
+	#srl $s7, $s7, 16
 	#jal ATAQUE
 	#nop
 	
@@ -266,7 +267,7 @@ OPCAO_0:	li $s0,0
  		
  		move	$a0, $zero
  		move	$v0, $zero
-		jal MENU_LOOP
+		j MENU_LOOP
 		nop
 		
 OPCAO_1:	li $s0,1
@@ -284,7 +285,7 @@ OPCAO_1:	li $s0,1
  		
  		move	$a0, $zero
  		move	$v0, $zero
- 		jal MENU_LOOP
+ 		j MENU_LOOP
 		nop
 		
 OPCAO_2:	li $s0,2
@@ -302,7 +303,7 @@ OPCAO_2:	li $s0,2
  		
  		move	$a0, $zero
  		move	$v0, $zero
- 		jal MENU_LOOP
+ 		j MENU_LOOP
 		nop
 
 OPCAO_3:	li $s0,3
@@ -320,7 +321,7 @@ OPCAO_3:	li $s0,3
  		
  		move	$a0, $zero
  		move	$v0, $zero
- 		jal MENU_LOOP
+ 		j	MENU_LOOP
 		nop
 		
 ####################################################################################################################################
@@ -624,8 +625,10 @@ BEGIN_PARTIDA:	# Printa a tela inicial na tela diretamente do SD. Demora.
 		move $v1, $s1 #	PLAYER 2
 		lw $ra, 0($sp)
 		addi $sp, $sp, 4
-		j FIM_MENU
-		nop		
+		j SaiMenu
+		#jr $ra
+		#nop
+				
  ##################################################################################################################################				
 COMPLEMENTA_SELEC_UM:
 			beq $s1,0x1,SELEC_EHONDA_DOIS
@@ -765,13 +768,9 @@ FIM_CENARIO: jr $ra
 	nop
 ####################################################################################################################################
 GET_SPRITE: 		
- 	bne	$a0, 0x006D0000, LE#BAD_BLOCK1	# Tratamento da Bad Block do SD
+ 	bne	$a0, 0x006D0000, BAD_BLOCK	# Tratamento do Bad Block do SD
 	addi	$a0, $a0, 0x00006000
-	
-#BAD_BLOCK1:
-#	bne	$a0, 0x007A3000, LE
-#	addi	$a0, $a0, 0x00008000
-LE:
+BAD_BLOCK:
  	addi	$sp, $sp, -20	#salva os valores de a0, a1 e a2 na pilha para recuperá=los caso sejam alterados pelo syscall
  	sw	$a0, 0($sp)
  	sw	$a1, 4($sp)
@@ -845,7 +844,6 @@ PRINT_SPRITE:
 	add $t4, $zero, 1	# CONTADOR
 	addi $t6,$zero, 5400
 	
-	
 	slt $t1, $a0, $a2	# Se X do player analisado é menor que do outro player 
 	bne $t1, $zero, LOOP	# Caso player esteja na esquerda da tela, vai direto pra loop. 
 	addi $t3, $zero, TamX	# Tamanho em X
@@ -880,140 +878,146 @@ LOOP:
 ################################################### TECLADO #######################################################################
 LeTeclado:
 
-#Salvar os registradores $s e $a?
-
 #carrega o ultimo codigo do Buffer 0 e prepara para comparacao
-	la	$t0,0xFF100100	#BUFFER 0
-	la	$s0,0xFF100524	#KEY 1
-	la	$s4,0xFF10052C	#KEY 4
-	lb	$t8,0($t0)	#ultima tecla no buffer
-	la	$t2,X		#Primeira tecla do Jogador 1
-	la	$s5,T4		#Primeira tecla do Jogador 2
-	move	$t4,$zero	#inicializa o contador da comparacao
+la	$t0,0xFF100100	#BUFFER 0
+la	$s0,0xFF100524	#KEY 1
+la	$s4,0xFF10052C	#KEY 4
+lb	$t8,0($t0)	#ultima tecla no buffer
+la	$t2,X		#Primeira tecla do Jogador 1
+la	$s5,T4		#Primeira tecla do Jogador 2
+move	$t4,$zero	#inicializa o contador da comparacao
 #Carrega os indicadores de escrita de cada jogador
-	move	$a1,$zero
-	move	$a2,$zero
+move	$a1,$zero
+move	$a2,$zero
 #inicializa os valores de retorno
-	move	$v0,$zero
+move	$v0,$zero
 #move	$v1,$zero	#Invisivel para humanos
 
 #comparar o codigo com as teclas validas
 cmp:
-	lw	$t1,0($t2)	#Carrega o codigo a ser testado
-	beq	$t8,$t1,kcmp	#Compara o codigo. Se for uma tecla valida vai para comparacao do KeyMap
-	addi	$t2,$t2,8	#Passa para o proximo codigo
-	beq	$t1,$zero,TesteFim	#Verifica se acabaram as os codigos para testar
-	j	cmp
-	nop
+lw	$t1,0($t2)	#Carrega o codigo a ser testado
+beq	$t8,$t1,kcmp	#Compara o codigo. Se for uma tecla valida vai para comparacao do KeyMap
+addi	$t2,$t2,8	#Passa para o proximo codigo
+beq	$t1,$zero,TesteFim	#Verifica se acabaram as os codigos para testar
+j	cmp
+nop
 #comparar com o keymap e descobrir se a tecla esta sendo pressionada agora
 kcmp:
 #verifica de qual jogador eh a tecla. Se $s6 = 1 entao eh o jogador 1
-	slt	$s6,$t2,$s5
-	lw	$t1,4($t2)	#Carrega o keymap da tecla detectada, que esta no .data
+slt	$s6,$t2,$s5
+lw	$t1,4($t2)	#Carrega o keymap da tecla detectada, que esta no .data
 
 #Seleciona entre o Key1 (J1) ou Key4 (J2)
-	move	$t9,$s4
-	beq	$s6,$zero,KJ2
-	move	$t9,$s0
+move	$t9,$s4
+beq	$s6,$zero,KJ2
+move	$t9,$s0
 KJ2:
-	lw	$t3,0($t9)	
+lw	$t3,0($t9)	
 
-	and	$t3,$t1,$t3		#'Filtra' o KeyMap
-	bne	$t1,$t3,TesteFim	#Verifica se a tecla esta sendo pressionada
+and	$t3,$t1,$t3		#'Filtra' o KeyMap
+bne	$t1,$t3,TesteFim	#Verifica se a tecla esta sendo pressionada
 
 #A tecla eh valida e esta pressionada:
-	beq	$s6,$zero,TesteJ2	#Verifica de quem eh a tecla atual
-	bne	$a1,$zero,TesteFim	#Verifica se ja escreveu na saida do J1
-	sll	$t8,$t8,16		#Desloca para escrever na saida do J1
-	or	$v0,$v0,$t8		#Escreve na saida do J1
-	addi	$a1,$a1,1		#Indica que ja leu para o J1
-	j	TesteFim
-	nop
+beq	$s6,$zero,TesteJ2	#Verifica de quem eh a tecla atual
+bne	$a1,$zero,TesteFim	#Verifica se ja escreveu na saida do J1
+sll	$t8,$t8,16		#Desloca para escrever na saida do J1
+or	$v0,$v0,$t8		#Escreve na saida do J1
+addi	$a1,$a1,1		#Indica que ja leu para o J1
+j	TesteFim
+nop
 TesteJ2:
-	bne	$a2,$zero,TesteFim	#Verifica se ja escreveu na saida do J2
-	or	$v0,$v0,$t8		#Escreve na saida do J2
-	addi	$a2,$a2,1		#Indica que ja leu para o J2
+bne	$a2,$zero,TesteFim	#Verifica se ja escreveu na saida do J2
+or	$v0,$v0,$t8		#Escreve na saida do J2
+addi	$a2,$a2,1		#Indica que ja leu para o J2
 
 TesteFim:
-	lb	$t8,0($t0)		#Carrega a ultima tecla no buffer
-	la	$t2,X			#Primeira tecla do Jogador 1
-	addi	$t4,$t4,1		#incrementa o contador de leitura
-	and	$a0,$a1,$a2		#Verifica se ja leu os dois valores
+lb	$t8,0($t0)		#Carrega a ultima tecla no buffer
+la	$t2,X			#Primeira tecla do Jogador 1
+addi	$t4,$t4,1		#incrementa o contador de leitura
+and	$a0,$a1,$a2		#Verifica se ja leu os dois valores
 
-	beq	$a0,1,AnaliseMov	
-	bne	$t4,100,cmp		#limite de iteracoes para ler as teclas dos jogadores
+beq	$a0,1,AnaliseMov	
+bne	$t4,100,cmp		#limite de iteracoes para ler as teclas dos jogadores
 
 AnaliseMov:
 #Analisa o movimento (andar para direita ou esquerda e abaixar)
-	li	$t3,8		#Carrega o peso da tecla
-	move	$t1,$s0		#Copia o KEY1 para $t1
-	move	$v1,$zero
+li	$t3,8		#Carrega o peso da tecla
+move	$t1,$s0		#Copia o KEY1 para $t1
+move	$v1,$zero
 MOV:
-	lw	$t7,0($t1)	#carrega o KEY
-	lw	$t6,4($t2)	#carrega o keymap do .data
-	and	$t7,$t6,$t7	#'Filtra' o Keymap
+lw	$t7,0($t1)	#carrega o KEY
+lw	$t6,4($t2)	#carrega o keymap do .data
+and	$t7,$t6,$t7	#'Filtra' o Keymap
 #comparacao
-	bne	$t7,$t6,CMOV	#Verifica se esta pressionado
-	add	$v1,$v1,$t3	#Soma o peso caso esteja pressionado
+bne	$t7,$t6,CMOV	#Verifica se esta pressionado
+add	$v1,$v1,$t3	#Soma o peso caso esteja pressionado
 CMOV:
-	addi	$t2,$t2,8	#Passa para o proxima tecla do .data
-	srl	$t3,$t3,1	#Divide o peso por 2
-	bne	$t3,0,MOV	#Testa se as comparacoes acabaram
+addi	$t2,$t2,8	#Passa para o proxima tecla do .data
+srl	$t3,$t3,1	#Divide o peso por 2
+bne	$t3,0,MOV	#Testa se as comparacoes acabaram
 
 #carrega os dados para analise do jogador 2
-	slt	$t1,$s5,$t2	#Compara se a analise do movimento do J2 ja foi feito
-	bne	$t1,$zero,Buff	#Passa para a verificacao do buffer caso o movimento do J2 ja tenha sido analisado
-	li	$t3,8		#Reinicia o peso
-	sll	$v1,$v1,16	#Shifta o registrador de retorno
-	move	$t2,$s5		#Coloca a tecla 4 do .data no $t2
-	move	$t1,$s4		#Coloca o KEY4 no $t1
-	j	MOV
-	nop
+slt	$t1,$s5,$t2	#Compara se a analise do movimento do J2 ja foi feito
+bne	$t1,$zero,Buff	#Passa para a verificacao do buffer caso o movimento do J2 ja tenha sido analisado
+li	$t3,8		#Reinicia o peso
+sll	$v1,$v1,16	#Shifta o registrador de retorno
+move	$t2,$s5		#Coloca a tecla 4 do .data no $t2
+move	$t1,$s4		#Coloca o KEY4 no $t1
+j	MOV
+nop
 Buff:
 #recuperando o contador
-	la	$t1, Cnt
-	lw	$t1, 0($t1)
+la	$t1, Cnt
+lw	$t1, 0($t1)
 #Armazena no Buffer se $t1 == valor max
-	beq	$t1,150,grava
-	addi	$t1,$t1,1
-	sw	$t1,Cnt
-	jr	$ra
+beq	$t1,150,grava
+addi	$t1,$t1,1
+sw	$t1,Cnt
+jr	$ra
 #j	LeTeclado
-	nop
+nop
 
 grava:
 #reseta o contador
-	move	$t1,$zero
-	sw	$t1,Cnt
+move	$t1,$zero
+sw	$t1,Cnt
 #Carregando os Buffers J
-	la	$s1,BuffJ1
-	la	$s2,BuffJ2
+la	$s1,BuffJ1
+la	$s2,BuffJ2
 
-	move	$a0,$zero	#Inicializa o indicador de escrita
-	move	$t9,$s2		#Seleciona o BuffJ2
-	andi	$t8,$v0,0xFF	#Seleciona o dado a ser gravado
+move	$a0,$zero	#Inicializa o indicador de escrita
+move	$t9,$s2		#Seleciona o BuffJ2
+andi	$t8,$v0,0xFF	#Seleciona o dado a ser gravado
 EscreveBuff:
 #Shift para esquerda do Buffer. Seleciona BuffJ1 ou BuffJ2 dependendo da flag $s6
-	lw	$t2,4($t9)
-	sll	$t2,$t2,8
-	lb	$t5,3($t9)
-	or	$t2,$t2,$t5
-	sw	$t2,4($t9)
-	lw	$t2,0($t9)
-	sll	$t2,$t2,8
-	sw	$t2,0($t9)
+lw	$t2,4($t9)
+sll	$t2,$t2,8
+lb	$t5,3($t9)
+or	$t2,$t2,$t5
+sw	$t2,4($t9)
+lw	$t2,0($t9)
+sll	$t2,$t2,8
+sw	$t2,0($t9)
 #grava no ultimo Byte
-	sb	$t8,0($t9)
+sb	$t8,0($t9)
 
-	bne	$a0,$zero,fim	#Verifica se ja escreveu nos dois
-	move	$t9,$s1		#Seleciona o BuffJ1
-	addi	$a0,$a0,1	#Indica que um ja ta escrito
-	move	$t8,$v0		#prepara o dado a ser escrito
-	srl	$t8,$t8,16
-	j	EscreveBuff	
-	nop
+bne	$a0,$zero,fim	#Verifica se ja escreveu nos dois
+move	$t9,$s1		#Seleciona o BuffJ1
+addi	$a0,$a0,1	#Indica que um ja ta escrito
+move	$t8,$v0		#prepara o dado a ser escrito
+srl	$t8,$t8,16
+j	EscreveBuff	
+nop
 fim:
-	jr	$ra
+
+#exibe na tela (teste somente)
+#lw	$a0,0($s1)
+#lw	$a1,4($s1)
+#lw	$a2,0($s2)
+#lw	$a3,4($s2)
+
+jr	$ra
+#j	LeTeclado
 
 #######################################################################################################################
 MOVIMENTO: # $a0 = X1, $a1 =Y1, $a2 = X2, $a3 = Sprite1, $s0 = Y2, $s1 = Sprite2
@@ -1021,53 +1025,36 @@ MOVIMENTO: # $a0 = X1, $a1 =Y1, $a2 = X2, $a3 = Sprite1, $s0 = Y2, $s1 = Sprite2
  	sw $ra, 0($sp)
  	sw $a3, 4($sp)
  	sw $s1, 8($sp)
- 	#### PLAYER 1
+ 	
  	beq $s6, 2, BAIXO_P1		#21h
 	beq $s6, 4, DIREITA_P1		#2Ah
 	beq $s6, 8 , ESQUERDA_P1		#22h
-	beq $s6, 1, PULO_P1
+	beq $s6, 1, PULO_P1	#22h
 	beq $s6, $zero, PARADO_P1
-	#	beq $s6, 6, BAIXO_FRENTE_P1	#21h
-	#	beq $s6, 10, BAIXO_TRAS_P1	
-	#	beq $s6, 5, PULO_FRENTE_P1
-	#	beq $s6, 9, PULO_TRAS_P1
-	
-	
-P2:			#### PLAYER 2
+
+P2:
 	beq $s7, $zero, PARADO_P2 
-	#beq $s7, 2, BAIXO_P2		#21h
-	#beq $s7, 4, DIREITA_P2		#2Ah
-	#beq $s7, 8 , ESQUERDA_P2		#22h
-	#beq $s7, $zero, PARADO_P2 
-	#beq $s7, 2, BAIXO_P2		#21h
-	#beq $s7, 6, BAIXO_FRENTE_P2	#21h
-	#beq $s7, 10, BAIXO_TRAS_P2
-#	beq $s7, 5, PULO_FRENTE
-#	beq $s7, 9, PULO_TRAS
-
-
 #	beq $s7, 6, BAIXO_FRENTE	#21h
 #	beq $s7, 10, BAIXO_TRAS		#21h
-	
+##### DEFAULT: 
+	la $a3, 0x10101100
+	jal IMPRIME
+	nop	
 BACK_MAIN:
-	lw $a3, 4($sp)
-	jal IMPRIME
-	nop
-	lw $s1, 8($sp)
-	jal IMPRIME
-	nop
-	lw $a3, 4($sp)
-	lw $s1, 8($sp)
 	lw $ra, 0($sp)
+	lw $a3, 4($sp)
+	lw $s1, 8($sp)
 	addi $sp, $sp, 12	
 	jr $ra
 	nop
+
 PARADO_P1:
 	la $a3, 0x10101100
 	jal IMPRIME
 	nop
 	j P2
-	nop	
+	nop
+	
 DIREITA_P1:		#PARA IMPLEMENTAR A HITBOX, TROQUE O ADDI POR ADD, 2 POR S3 E NA ESQUERDA ADDI POR -2
 	
 	addi $s3,$a0,8
@@ -1174,121 +1161,8 @@ BAIXO_TRAS_P1:
 	nop
 	j P2
 	nop
-################### PLAYER 2
 PARADO_P2:
 	la $s1, 0x1018DB00
-	jal IMPRIME
-	nop
-	j BACK_MAIN
-	nop
-	
-DIREITA_P2:		#PARA IMPLEMENTAR A HITBOX, TROQUE O ADDI POR ADD, 2 POR S3 E NA ESQUERDA ADDI POR -2
-	
-	addi $s3,$a2,8
-	jal COLISAO_BORDA
-	
-#	addi $a0, $a0, 2
-	add $a2, $a2, $s3
-	la $s1, 0x101AE800
-	jal IMPRIME
-	nop
-#	addi $a0, $a0, 2
-	add $a2, $a2, $s3
-	la $a3, 0x101B3300
-	jal IMPRIME
-	nop
-#	addi $a0, $a0, 2
-	add $a2, $a2, $s3
-	la $s1, 0x101B7E00
-	jal IMPRIME
-	nop
-#	addi $a0, $a0, 2
-	add $a2, $a2, $s3
-	la $s1, 0x101BC900 
-	jal IMPRIME
-	nop
-	la $s1, 0x1017FA00 # PARADO
-	j BACK_MAIN
-	nop
-ESQUERDA_P2:
-
-	addi $a2,$a2,-8
-	jal COLISAO_BORDA
-
-#	addi $a0, $a0, -2
-	sub $a2,$a2, $s3
-	la $s1, 0x101C1400
-	jal IMPRIME
-	nop
-#	addi $a0, $a0, -2
-	sub $a2, $a2, $s3
-	addi $s1, $s1, 0x4B00
-	jal IMPRIME
-	nop
-#	addi $a0, $a0, -2
-	sub $a2, $a2, $s3
-	addi $s1, $s1, 0x4B00
-	jal IMPRIME
-	nop
-#	addi $a0, $a0, -2
-	sub $a2, $a2, $s3
-	addi $s1, $s1, 0x4B00
-	jal IMPRIME
-	nop
-	la $s1, 0x1017FA00
-	j BACK_MAIN
-	nop
-PULO_P2:
-	addi $a1, $a1, -25
-	la $a3, 0x10192600
-	jal IMPRIME
-	nop
-	addi $a1, $a1, -25
-	la $a3, 0x10192600
-	jal IMPRIME
-	nop
-	la $a3, 0x10197100
-	jal IMPRIME
-	nop
-	addi $a1, $a1, 25
-	la $a3, 0x10197100
-	jal IMPRIME
-	nop
-	addi $a1, $a1, 25
-	la $a3, 0x10197100
-	jal IMPRIME
-	nop
-	j BACK_MAIN
-	nop
-PULO_FRENTE_P2:
-
-PULO_TRAS_P2:
-
-BAIXO_P2:	 #PERSONAGEM ABAIXA E VOLTA, DEVERIA FICAR ABAIXADO ENQUANTO O BOTTÃO ABAIXA É SEGURADO
-
-	la $a3, 0x101B4000
-	jal IMPRIME
-	nop
-	jal IMPRIME
-	nop
-	j BACK_MAIN
-	nop
-BAIXO_FRENTE_P2:
-	addi $s3,$a0,8
-	jal COLISAO_BORDA
-	la $a3, 0x101B4000
-	jal IMPRIME
-	nop
-	jal IMPRIME
-	nop
-	j BACK_MAIN
-	nop
-BAIXO_TRAS_P2:
-	addi $s3,$a0,-4
-	jal COLISAO_BORDA
-	la $a3, 0x101B4000
-	jal IMPRIME
-	nop
 	jal IMPRIME
 	nop
 	j BACK_MAIN

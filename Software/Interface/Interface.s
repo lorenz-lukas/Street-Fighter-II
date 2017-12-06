@@ -11,7 +11,7 @@
 .eqv SPRITE_QTD_BYTE 19456
 
 .eqv Ryu_cenario     0x100E0400		#0x10012000	#Endereço na SRAM onde começam os cenários
-.eqv Ken_x_x	     0X1017FA00#0x1010F200	
+.eqv Ken_x_x	     0X1017FA00		#0x1010F200	
 .eqv Ryu_1_2	     0x100F3000
 
 .eqv OFFS_SD_CENA 0x00013000		#OFFSET entre arquivos de cenário no cartão SD
