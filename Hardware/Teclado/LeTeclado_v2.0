@@ -7,7 +7,7 @@
 #        a tecla (penultimo byte 1), sendo 1 o 'player 1' e 0 o 'player 2'				#
 # $v1 -> Tem dois codigos que indicam o movimento para o jogador 1 (Byte 2) e do jogador 2 (byte 0)	#
 #        O codigo e a soma das teclas pressionadas, onde cada tecla vale:				#
-#        pulo = 1; agachar = 2; andar p/ frente = 4; andar p/ tras = 8;					#
+#        pulo = 1; agachar = 2; andar p/ direita = 4; andar p/ esquerda = 8;				#
 #        Ex: Pular para frente: 1+4 = 5									#
 # BuffJ1 e BuffJ2 -> Espacos de memoria, declarados no .data; Guarda a sequencia de teclas pressionadas	#
 #                    para cada jogador, usados para realizar os especiais.				#

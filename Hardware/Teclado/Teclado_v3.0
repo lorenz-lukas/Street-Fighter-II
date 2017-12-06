@@ -1,3 +1,23 @@
+#########################################################################################################
+# Rotina que le do teclado e grava sequencia de teclas							#
+# Teclas usadas: x,c,v,d (movimento Player 1); 4,5,6,8 (movimento Player 2);				#
+# 		t,y,u,g,h,j (ataque player 1); Ins,Home,PageUp,PageDown,End,Del (ataque player 2)	#
+# Valores de retorno:											#
+# $v0 -> Ultima tecla valida pressionada do player 1 (byte 2) e do player 2 (byte 0)			#
+# $v1 -> Tem dois codigos que indicam o movimento do player 1 (Byte 2) e do player 2 (byte 0)		#
+#        O codigo e a soma das teclas pressionadas, onde cada tecla vale:				#
+#        pulo = 1; agachar = 2; andar p/ direita = 4; andar p/ esquerda = 8;				#
+#        Ex: Pular para frente: 1+4 = 5									#
+# BuffJ1 e BuffJ2 -> Espacos de memoria, declarados no .data; Guarda a sequencia de teclas pressionadas	#
+#                    para cada jogador, usados para realizar os especiais.				#
+#########################################################################################################
+
+#para testes:
+#a0 -> s3
+#a1 -> s7
+#a2 -> k0
+#a0 a a3 foram usados para mostrar os buffers
+
 .data
 .align 2
 #Teclas do jogador 1
@@ -48,6 +68,12 @@ kPDown:	.word 0x04000000
 END:	.word 0x00000000
 .text
 
+MAIN:
+jal	LeTeclado
+nop
+j	LeTeclado
+
+
 LeTeclado:
 
 #Salvar os registradores $s e $a?
@@ -66,7 +92,6 @@ move	$a2,$zero
 #inicializa os valores de retorno
 move	$v0,$zero
 #move	$v1,$zero	#Invisivel para humanos
-move	$k0,$zero
 
 #comparar o codigo com as teclas validas
 cmp:
@@ -75,6 +100,7 @@ beq	$t8,$t1,kcmp	#Compara o codigo. Se for uma tecla valida vai para comparacao 
 addi	$t2,$t2,8	#Passa para o proximo codigo
 beq	$t1,$zero,TesteFim	#Verifica se acabaram as os codigos para testar
 j	cmp
+nop
 #comparar com o keymap e descobrir se a tecla esta sendo pressionada agora
 kcmp:
 #verifica de qual jogador eh a tecla. Se $s6 = 1 entao eh o jogador 1
@@ -98,6 +124,7 @@ sll	$t8,$t8,16		#Desloca para escrever na saida do J1
 or	$v0,$v0,$t8		#Escreve na saida do J1
 addi	$a1,$a1,1		#Indica que ja leu para o J1
 j	TesteFim
+nop
 TesteJ2:
 bne	$a2,$zero,TesteFim	#Verifica se ja escreveu na saida do J2
 or	$v0,$v0,$t8		#Escreve na saida do J2
@@ -137,22 +164,30 @@ sll	$v1,$v1,16	#Shifta o registrador de retorno
 move	$t2,$s5		#Coloca a tecla 4 do .data no $t2
 move	$t1,$s4		#Coloca o KEY4 no $t1
 j	MOV
-
+nop
 Buff:
 #recuperando o contador
 la	$t1, Cnt
 lw	$t1, 0($t1)
 #Armazena no Buffer se $t1 == valor max
-beq	$t1,8001,grava
+beq	$t1,150,grava
 addi	$t1,$t1,1
 sw	$t1,Cnt
-#jr	$ra
-j	LeTeclado
+jr	$ra
+#j	LeTeclado
+nop
 
 grava:
+#reseta o contador
+move	$t1,$zero
+sw	$t1,Cnt
+#Carregando os Buffers J
+la	$s1,BuffJ1
+la	$s2,BuffJ2
+
 move	$a0,$zero	#Inicializa o indicador de escrita
-move	$t9,$s2		#Seleciona o BuffJ1
-andi	$t8,$t8,0xFF	#Seleciona o dado a ser gravado
+move	$t9,$s2		#Seleciona o BuffJ2
+andi	$t8,$v0,0xFF	#Seleciona o dado a ser gravado
 EscreveBuff:
 #Shift para esquerda do Buffer. Seleciona BuffJ1 ou BuffJ2 dependendo da flag $s6
 lw	$t2,4($t9)
@@ -167,11 +202,19 @@ sw	$t2,0($t9)
 sb	$t8,0($t9)
 
 bne	$a0,$zero,fim	#Verifica se ja escreveu nos dois
-move	$t9,$s1		#Seleciona o BuffJ2
+move	$t9,$s1		#Seleciona o BuffJ1
 addi	$a0,$a0,1	#Indica que um ja ta escrito
-andi	$t8,$t8,0xFF0000
+move	$t8,$v0		#prepara o dado a ser escrito
+srl	$t8,$t8,16
 j	EscreveBuff	
-
+nop
 fim:
-#jr	$ra
-j	LeTeclado
+
+#exibe na tela (teste somente)
+#lw	$a0,0($s1)
+#lw	$a1,4($s1)
+#lw	$a2,0($s2)
+#lw	$a3,4($s2)
+
+jr	$ra
+#j	LeTeclado
